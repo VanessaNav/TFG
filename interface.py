@@ -208,37 +208,30 @@ class MainWindow(QDialog): #ventana principal
 
         self.load()
 
-    def isUndo(self): #REVISAR
+    def isUndo(self):
         self.writeJSON(self.dir + "/" + self.imgSequence[self.imgN] + ".json", self.paint.imgCurves)
         self.writeJSON(self.dir + "/" + self.imgSequence[self.imgN] + "_particles.json", self.paint.imgParticles)
 
-        scale = self.UpdateScreenWithImage(self.dir + "/" + self.imgSequence[self.imgN])
-
-        self.paint.initIMG(self.dir + "/" + self.imgSequence[self.imgN],scale)  # pintar la imagen en la escena, SIN curvas
-
-        #self.resize(self.paint.pixMap.width(), self.paint.pixMap.height())
-
-        self.paint.loadCurves(self.dir + "/" + self.imgSequence[self.imgN] + ".json")
-        self.paint.loadParticles(self.dir + "/" + self.imgSequence[self.imgN] + "_particles.json")
+        self.load()
 
         curveN = "curve" + str(self.paint.curveCounter)
         particleN = "particle" + str(self.paint.particleCounter)
 
         if any(self.paint.imgCurves):
             self.paint.imgCurves.pop(curveN)
+            self.paint.curveCounter -= 1
             self.writeJSON(self.dir + "/" + self.imgSequence[self.imgN] + ".json", self.paint.imgCurves)
-            scale = self.UpdateScreenWithImage(self.dir + "/" + self.imgSequence[self.imgN])
-            self.paint.initIMG(self.dir + "/" + self.imgSequence[self.imgN],scale)  # pintar la imagen en la escena, SIN curvas
-            #self.resize(self.paint.pixMap.width(), self.paint.pixMap.height())
-            self.paint.loadCurves(self.dir + "/" + self.imgSequence[self.imgN] + ".json")
+            self.load()
+        else:
+            print("Nothing to undo in curves dictionary")
 
         if any(self.paint.imgParticles):
             self.paint.imgParticles.pop(particleN)
+            self.paint.particleCounter -= 1
             self.writeJSON(self.dir + "/" + self.imgSequence[self.imgN] + "_particles.json", self.paint.imgParticles)
-            scale = self.UpdateScreenWithImage(self.dir + "/" + self.imgSequence[self.imgN])
-            self.paint.initIMG(self.dir + "/" + self.imgSequence[self.imgN],scale)
-            #self.resize(self.paint.pixMap.width(), self.paint.pixMap.height())
-            self.paint.loadParticles(self.dir + "/" + self.imgSequence[self.imgN] + "_particles.json")
+            self.load()
+        else:
+            print("Nothing to undo in particles dictionary")
 
 app = QApplication(sys.argv)
 

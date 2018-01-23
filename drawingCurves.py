@@ -32,8 +32,8 @@ class Paint(QGraphicsView): #clase para crear el plano donde podremos dibujar
         self.imgCurves = dict() #diccionario para guardar cada curva de la imagen como clave, y como valores su lista de puntos
         self.imgParticles = dict() #diccionario para guardar cada particula de la imagen como clave, y como valores su lista de puntos
 
-        self.curveCounter = 0 #contador para indicar la curva
-        self.particleCounter = 0  # contador de particulas
+        self.curveCounter = 1 #contador para indicar la curva
+        self.particleCounter = 1  # contador de particulas
 
         self.pointList = [] #lista de puntos para las curvas de la imagen
         self.particleList = [] #lista de particulas
@@ -86,27 +86,23 @@ class Paint(QGraphicsView): #clase para crear el plano donde podremos dibujar
 
     def mouseReleaseEvent(self, event, scale=None):
         if not self.isParticles:
-            #if event.button() == Qt.LeftButton:
-                #print("Curve saved")
-
             if not scale == None: #aplicar escala a la imagen
                 self.pointList = [ (x * scale, y * scale) for (x, y) in self.pointList ]
 
-            self.curveCounter += 1  # el contador de curva es la clave del diccionario
             curveN = "curve" + str(self.curveCounter)
+            self.curveCounter += 1  # el contador de curva es la clave del diccionario
+
             # diccionario para asociar una lista de puntos a cada una de las curvas de la imagen
             self.imgCurves.update({curveN:self.pointList})
             # una vez guardados los puntos de una curva, reiniciamos la lista de puntos
             self.pointList = []
         else:
-            #if event.button() == Qt.LeftButton:
-                #print("Point saved")
-
             if not scale == None:  # aplicar escala a la imagen
                 self.particleList = [(x * scale, y * scale) for (x, y) in self.particleList]
 
-            self.particleCounter += 1  # el contador de particula es la clave del diccionario
             particleN = "particle" + str(self.particleCounter)
+            self.particleCounter += 1  # el contador de particula es la clave del diccionario
+
             # diccionario para asociar una lista de puntos a cada una de las particulas de la imagen
             self.imgParticles.update({particleN: self.particleList})
             # una vez guardados los puntos de una particula, reiniciamos la lista de particulas
