@@ -3,15 +3,16 @@ import fnmatch
 import cv2
 import sys
 from os import listdir
-from PyQt5.QtWidgets import QApplication, QDialog, QGraphicsView, QGraphicsScene, QGridLayout, QPushButton, QGroupBox, \
-    QAction, QMainWindow, QMenuBar, QFileDialog, QCheckBox, QHBoxLayout, QDesktopWidget
-from PyQt5.QtGui import QPen, QBrush, QPixmap, QImage, QIcon
+from PyQt5.QtWidgets import QApplication, QDialog, QGridLayout, QPushButton, \
+    QAction, QMenuBar, QFileDialog, QCheckBox, QHBoxLayout, QDesktopWidget
+from PyQt5.QtGui import QIcon
 
 from drawingCurves import Paint
 
 class MainWindow(QDialog): #ventana principal
     def __init__(self):
         QDialog.__init__(self)
+        self.setWindowTitle("drawingCurves")
 
         self.showMaximized() # ventana maximizada por defecto
 
@@ -20,10 +21,14 @@ class MainWindow(QDialog): #ventana principal
 
         self.btn_clear = QPushButton("Clear")
         self.btn_undo = QPushButton("Undo")
-        self.check_show = QCheckBox("Previous Image Curves")
         self.check_particles = QCheckBox("Draw Particles")
-        self.check_show.setChecked(False)
+        self.check_showC = QCheckBox("Previous Image Curves")
+        self.check_showP = QCheckBox("Previous Image Particles")
+
+        self.check_showC.setChecked(False)
+        self.check_showP.setChecked(False)
         self.check_particles.setChecked(False)
+
         self.btn_next = QPushButton()
         self.btn_prev = QPushButton()
 
@@ -36,8 +41,9 @@ class MainWindow(QDialog): #ventana principal
         box.addWidget(self.btn_prev)
         box.addWidget(self.btn_next)
         box.addStretch()
-        box.addWidget(self.check_show)
         box.addWidget(self.check_particles)
+        box.addWidget(self.check_showC)
+        box.addWidget(self.check_showP)
         box.addWidget(self.btn_undo)
         box.addWidget(self.btn_clear)
 
@@ -64,7 +70,8 @@ class MainWindow(QDialog): #ventana principal
         self.btn_clear.clicked.connect(self.isClear)
         self.btn_next.clicked.connect(self.isNext)
         self.btn_prev.clicked.connect(self.isPrev)
-        self.check_show.clicked.connect(self.isShow)
+        self.check_showC.clicked.connect(self.isShowC)
+        self.check_showP.clicked.connect(self.isShowP)
         self.btn_undo.clicked.connect(self.isUndo)
         self.check_particles.clicked.connect(self.isParticles)
 
@@ -74,22 +81,22 @@ class MainWindow(QDialog): #ventana principal
         self.btn_undo.setFixedWidth(50)
 
     def UpdateScreenWithImage(self, filename):
-        img = cv2.imread(filename)
+        img = cv2.imread(filename) #cargar imagen
 
-        actual_height, actual_width , c = img.shape
-        screenSize = QDesktopWidget().screenGeometry(-1)
+        actual_height, actual_width , c = img.shape #tomar su altura y anchura (c son los colores rgb)
+        screenSize = QDesktopWidget().screenGeometry(-1) # tamaño de la pantalla
 
-        screenHeight = screenSize.height() -150
-        screenWidth = screenSize.width() -150
+        screenHeight = screenSize.height() -150 #quitarle la barra de tareas, y los margenes de la aplicacion (arriba y abajo)
+        screenWidth = screenSize.width() -20 #quitarle los margenes de la aplicacion (dcha e izda)
 
-        ratio = actual_width / actual_height
+        ratio = actual_width / actual_height #para saber si la imagen es mas ancha que alta, o viceversa
 
-        if (screenWidth / ratio > screenHeight):
-            scale = screenHeight / actual_height
+        if (screenWidth / ratio > screenHeight): #si la imagen no cabe de ancha...
+            scale = screenHeight / actual_height #ajustarla con la altura de la imagen
             #self.resize(screenWidth / ratio, screenHeight)
             #self.setGeometry(10,30,screenWidth / ratio, screenHeight)
-        else:
-            scale = screenWidth / actual_width
+        else: #si la imagen no cabe de alta...
+            scale = screenWidth / actual_width #ajustarla con la anchura de la imagen
             #self.resize(screenWidth, screenHeight * ratio)
             #self.setGeometry(10, 30, screenWidth, screenHeight * ratio)
 
@@ -103,7 +110,7 @@ class MainWindow(QDialog): #ventana principal
         self.dir = str(QFileDialog.getExistingDirectory(self, "Select Directory"))
 
         self.imgSequence = fnmatch.filter(listdir(self.dir), '*.jpg')  # secuencia de imagenes
-        self.imgN = 0
+        self.imgN = 0 #comenzar por la primera
 
         scale=self.UpdateScreenWithImage(self.dir + "/" + self.imgSequence[self.imgN])
 
@@ -111,16 +118,18 @@ class MainWindow(QDialog): #ventana principal
 
         #self.resize(self.paint.pixMap.width(), self.paint.pixMap.height())
 
-        self.setWindowTitle(self.imgSequence[self.imgN])  # titulo de la ventana
+        self.setWindowTitle(self.windowTitle() +"_"+ self.imgSequence[self.imgN])  # titulo de la ventana
 
-        self.paint.loadPoints(self.dir + "/" + self.imgSequence[self.imgN] + ".json")
-        if self.check_show.isChecked():
-            self.paint.showPrevPoints(self.dir + "/" + self.imgSequence[self.imgN - 1] + ".json")
+        self.paint.loadCurves(self.dir + "/" + self.imgSequence[self.imgN] + ".json")
+        self.paint.loadParticles(self.dir + "/" + self.imgSequence[self.imgN] + "_particles.json")
 
-        if self.check_particles.isChecked():
-            self.paint.loadPoints(self.dir + "/" + self.imgSequence[self.imgN] + "_particles.json")
-            if self.check_show.isChecked():
-                self.paint.showPrevPoints(self.dir + "/" + self.imgSequence[self.imgN - 1] + "_particles.json")
+        if self.check_showC.isChecked():
+            self.paint.showPrevCurves(self.dir + "/" + self.imgSequence[self.imgN - 1] + ".json")
+
+        #if self.check_particles.isChecked():
+
+        if self.check_showP.isChecked():
+            self.paint.showPrevParticles(self.dir + "/" + self.imgSequence[self.imgN - 1] + "_particles.json")
 
 
     def load(self):
@@ -137,15 +146,16 @@ class MainWindow(QDialog): #ventana principal
 
         #self.resize(self.paint.pixMap.width(), self.paint.pixMap.height())
 
-        self.paint.loadPoints(self.dir + "/" + self.imgSequence[self.imgN] + ".json")
+        self.paint.loadCurves(self.dir + "/" + self.imgSequence[self.imgN] + ".json")
+        self.paint.loadParticles(self.dir + "/" + self.imgSequence[self.imgN] + "_particles.json")
 
-        if self.check_show.isChecked():
-            self.paint.showPrevPoints(self.dir + "/" + self.imgSequence[self.imgN - 1] + ".json")
+        if self.check_showC.isChecked():
+            self.paint.showPrevCurves(self.dir + "/" + self.imgSequence[self.imgN - 1] + ".json")
 
-        if self.check_particles.isChecked():
-            self.paint.loadPoints(self.dir + "/" + self.imgSequence[self.imgN] + "_particles.json")
-            if self.check_show.isChecked():
-                self.paint.loadPoints(self.dir + "/" + self.imgSequence[self.imgN - 1] + "_particles.json")
+        #if self.check_particles.isChecked():
+
+        if self.check_showP.isChecked():
+            self.paint.showPrevParticles(self.dir + "/" + self.imgSequence[self.imgN - 1] + "_particles.json")
 
     def gen3D(self):
         #os.system("script2.py 1")
@@ -174,16 +184,16 @@ class MainWindow(QDialog): #ventana principal
 
             #self.resize(self.paint.pixMap.width(), self.paint.pixMap.height())
 
-            self.paint.loadPoints(self.dir + "/" + self.imgSequence[self.imgN] + ".json") #cargar sus curvas
+            self.paint.loadCurves(self.dir + "/" + self.imgSequence[self.imgN] + ".json") #cargar sus curvas
+            self.paint.loadParticles(self.dir + "/" + self.imgSequence[self.imgN] + "_particles.json")
 
-            if self.check_particles.isChecked(): #si esta a true, cargar tambien sus particulas
-                self.paint.loadPoints(self.dir + "/" + self.imgSequence[self.imgN] + "_particles.json")
+            #if self.check_particles.isChecked(): #si esta a true, cargar tambien sus particulas
 
-            if self.check_show.isChecked():
-                self.paint.showPrevPoints(self.dir + "/" + self.imgSequence[self.imgN - 1] + ".json")
+            if self.check_showC.isChecked():
+                self.paint.showPrevCurves(self.dir + "/" + self.imgSequence[self.imgN - 1] + ".json")
 
-                if self.check_particles.isChecked():
-                    self.paint.showPrevPoints(self.dir + "/" + self.imgSequence[self.imgN - 1] + "_particles.json")
+            if self.check_showP.isChecked():
+                self.paint.showPrevParticles(self.dir + "/" + self.imgSequence[self.imgN - 1] + "_particles.json")
         else:
             print("There are no more images for this sequence")
 
@@ -210,16 +220,16 @@ class MainWindow(QDialog): #ventana principal
 
             #self.resize(self.paint.pixMap.width(), self.paint.pixMap.height())
 
-            self.paint.loadPoints(self.dir + "/" + self.imgSequence[self.imgN] + ".json")
+            self.paint.loadCurves(self.dir + "/" + self.imgSequence[self.imgN] + ".json")
+            self.paint.loadParticles(self.dir + "/" + self.imgSequence[self.imgN] + "_particles.json")
 
-            if self.check_particles.isChecked(): #si esta a true, cargar tambien sus particulas
-                self.paint.loadPoints(self.dir + "/" + self.imgSequence[self.imgN] + "_particles.json")
+            #if self.check_particles.isChecked(): #si esta a true, cargar tambien sus particulas
 
-            if self.check_show.isChecked():
-                self.paint.showPrevPoints(self.dir + "/" + self.imgSequence[self.imgN - 1] + ".json")
+            if self.check_showC.isChecked():
+                self.paint.showPrevCurves(self.dir + "/" + self.imgSequence[self.imgN - 1] + ".json")
 
-                if self.check_particles.isChecked():
-                    self.paint.showPrevPoints(self.dir + "/" + self.imgSequence[self.imgN - 1] + "_particles.json")
+            if self.check_showP.isChecked():
+                self.paint.showPrevParticles(self.dir + "/" + self.imgSequence[self.imgN - 1] + "_particles.json")
         else:
             print("There are no more images for this sequence")
 
@@ -240,11 +250,11 @@ class MainWindow(QDialog): #ventana principal
         self.writeJSON(self.dir + "/" + self.imgSequence[self.imgN] + "_particles.json", self.paint.imgParticles)
 
 
-    def isShow(self):
-        if self.paint.isShow == False:
-            self.paint.isShow = True
+    def isShowC(self):
+        if self.paint.isShowC == False:
+            self.paint.isShowC = True
         else:
-            self.paint.isShow = False
+            self.paint.isShowC = False
 
         # escribimos un archivo json con el diccionario de curvas de una imagen (su titulo es el nombre de la imagen)
         self.writeJSON(self.dir + "/" + self.imgSequence[self.imgN] + ".json", self.paint.imgCurves)
@@ -258,16 +268,46 @@ class MainWindow(QDialog): #ventana principal
 
         #self.resize(self.paint.pixMap.width(), self.paint.pixMap.height())
 
-        self.paint.loadPoints(self.dir + "/" + self.imgSequence[self.imgN] + ".json")
+        if self.check_showC.isChecked():
+            self.paint.showPrevCurves(self.dir + "/" + self.imgSequence[self.imgN - 1] + ".json")
 
-        if self.check_particles.isChecked():
-            self.paint.loadPoints(self.dir + "/" + self.imgSequence[self.imgN] + "_particles.json")
+        self.paint.loadCurves(self.dir + "/" + self.imgSequence[self.imgN] + ".json")
+        self.paint.loadParticles(self.dir + "/" + self.imgSequence[self.imgN] + "_particles.json")
 
-        if self.check_show.isChecked():
-            self.paint.showPrevPoints(self.dir + "/" + self.imgSequence[self.imgN-1] + ".json")
+        #if self.check_particles.isChecked():
 
-            if self.check_particles.isChecked():
-                self.paint.showPrevPoints(self.dir + "/" + self.imgSequence[self.imgN - 1] + "_particles.json")
+        if self.check_showP.isChecked():
+            self.paint.showPrevParticles(self.dir + "/" + self.imgSequence[self.imgN - 1] + "_particles.json")
+
+
+    def isShowP(self):
+        if self.paint.isShowP == False:
+            self.paint.isShowP = True
+        else:
+            self.paint.isShowP = False
+
+        # escribimos un archivo json con el diccionario de curvas de una imagen (su titulo es el nombre de la imagen)
+        self.writeJSON(self.dir + "/" + self.imgSequence[self.imgN] + ".json", self.paint.imgCurves)
+
+        # escribimos un archivo json con el diccionario de curvas de una imagen (su titulo es el nombre de la imagen)
+        self.writeJSON(self.dir + "/" + self.imgSequence[self.imgN] + "_particles.json", self.paint.imgParticles)
+
+        scale = self.UpdateScreenWithImage(self.dir + "/" + self.imgSequence[self.imgN])
+
+        self.paint.initIMG(self.dir + "/" + self.imgSequence[self.imgN],scale)  # pintar la imagen en la escena, SIN curvas ni particulas
+
+        #self.resize(self.paint.pixMap.width(), self.paint.pixMap.height())
+
+        if self.check_showP.isChecked():
+            self.paint.showPrevParticles(self.dir + "/" + self.imgSequence[self.imgN - 1] + "_particles.json")
+
+        self.paint.loadCurves(self.dir + "/" + self.imgSequence[self.imgN] + ".json")
+        self.paint.loadParticles(self.dir + "/" + self.imgSequence[self.imgN] + "_particles.json")
+
+        #if self.check_particles.isChecked():
+
+        if self.check_showC.isChecked():
+            self.paint.showPrevCurves(self.dir + "/" + self.imgSequence[self.imgN - 1] + ".json")
 
     def isParticles(self):
         if self.paint.isParticles == False:
@@ -275,28 +315,28 @@ class MainWindow(QDialog): #ventana principal
         else:
             self.paint.isParticles = False
 
-            # escribimos un archivo json con el diccionario de curvas de una imagen (su titulo es el nombre de la imagen)
-            self.writeJSON(self.dir + "/" + self.imgSequence[self.imgN] + ".json", self.paint.imgCurves)
+        # escribimos un archivo json con el diccionario de curvas de una imagen (su titulo es el nombre de la imagen)
+        self.writeJSON(self.dir + "/" + self.imgSequence[self.imgN] + ".json", self.paint.imgCurves)
 
-            # escribimos un archivo json con el diccionario de curvas de una imagen (su titulo es el nombre de la imagen)
-            self.writeJSON(self.dir + "/" + self.imgSequence[self.imgN] + "_particles.json", self.paint.imgParticles)
+        # escribimos un archivo json con el diccionario de curvas de una imagen (su titulo es el nombre de la imagen)
+        self.writeJSON(self.dir + "/" + self.imgSequence[self.imgN] + "_particles.json", self.paint.imgParticles)
 
-            scale = self.UpdateScreenWithImage(self.dir + "/" + self.imgSequence[self.imgN])
+        scale = self.UpdateScreenWithImage(self.dir + "/" + self.imgSequence[self.imgN])
 
-            self.paint.initIMG(self.dir + "/" + self.imgSequence[self.imgN],scale)  # pintar la imagen en la escena, SIN curvas ni particulas
+        self.paint.initIMG(self.dir + "/" + self.imgSequence[self.imgN],scale)  # pintar la imagen en la escena, SIN curvas ni particulas
 
-            #self.resize(self.paint.pixMap.width(), self.paint.pixMap.height())
+        #self.resize(self.paint.pixMap.width(), self.paint.pixMap.height())
 
-            self.paint.loadPoints(self.dir + "/" + self.imgSequence[self.imgN] + ".json")
+        self.paint.loadCurves(self.dir + "/" + self.imgSequence[self.imgN] + ".json")
 
-            if self.check_particles.isChecked():
-                self.paint.loadPoints(self.dir + "/" + self.imgSequence[self.imgN] + "_particles.json")
+        #if self.check_particles.isChecked():
+        self.paint.loadParticles(self.dir + "/" + self.imgSequence[self.imgN] + "_particles.json")
 
-            if self.check_show.isChecked():
-                self.paint.showPrevPoints(self.dir + "/" + self.imgSequence[self.imgN - 1] + ".json")
+        if self.check_showC.isChecked():
+            self.paint.showPrevCurves(self.dir + "/" + self.imgSequence[self.imgN - 1] + ".json")
 
-                if self.check_particles.isChecked():
-                    self.paint.showPrevPoints(self.dir + "/" + self.imgSequence[self.imgN - 1] + "_particles.json")
+        if self.check_showP.isChecked():
+            self.paint.showPrevParticles(self.dir + "/" + self.imgSequence[self.imgN - 1] + "_particles.json")
 
     def isUndo(self):
         if self.paint.isUndo == False:
@@ -314,10 +354,9 @@ class MainWindow(QDialog): #ventana principal
 
         #self.resize(self.paint.pixMap.width(), self.paint.pixMap.height())
 
-        self.paint.loadPoints(self.dir + "/" + self.imgSequence[self.imgN] + ".json")
+        self.paint.loadCurves(self.dir + "/" + self.imgSequence[self.imgN] + ".json")
 
-        if self.check_particles.isChecked():
-            self.paint.loadPoints(self.dir + "/" + self.imgSequence[self.imgN] + "_particles.json")
+        self.paint.loadParticles(self.dir + "/" + self.imgSequence[self.imgN] + "_particles.json")
 
         curveN = "curve" + str(self.paint.curveCounter)
         particleN = "particle" + str(self.paint.particleCounter)
@@ -328,7 +367,7 @@ class MainWindow(QDialog): #ventana principal
             scale = self.UpdateScreenWithImage(self.dir + "/" + self.imgSequence[self.imgN])
             self.paint.initIMG(self.dir + "/" + self.imgSequence[self.imgN],scale)  # pintar la imagen en la escena, SIN curvas
             #self.resize(self.paint.pixMap.width(), self.paint.pixMap.height())
-            self.paint.loadPoints(self.dir + "/" + self.imgSequence[self.imgN] + ".json")
+            self.paint.loadCurves(self.dir + "/" + self.imgSequence[self.imgN] + ".json")
 
         if any(self.paint.imgParticles):
             self.paint.imgParticles.pop(particleN)
@@ -336,7 +375,7 @@ class MainWindow(QDialog): #ventana principal
             scale = self.UpdateScreenWithImage(self.dir + "/" + self.imgSequence[self.imgN])
             self.paint.initIMG(self.dir + "/" + self.imgSequence[self.imgN],scale)
             #self.resize(self.paint.pixMap.width(), self.paint.pixMap.height())
-            self.paint.loadPoints(self.dir + "/" + self.imgSequence[self.imgN] + "_particles.json")
+            self.paint.loadParticles(self.dir + "/" + self.imgSequence[self.imgN] + "_particles.json")
 
 
 
