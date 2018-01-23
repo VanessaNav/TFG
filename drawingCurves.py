@@ -9,22 +9,16 @@ from PyQt5.QtGui import QPen, QBrush, QPixmap, QImage
 from erosioning import cropImageBorders
 
 class Paint(QGraphicsView): #clase para crear el plano donde podremos dibujar
-    def __init__(self,filename,scale):
+    def __init__(self):
         QGraphicsView.__init__(self)
 
         r=QRectF(self.viewport().rect())
         self.setSceneRect(r)
         self.scene = QGraphicsScene() # escena que debemos añadir al plano de dibujo
 
-        self.isClear = False #para los botones de la ventana
-        self.isNext = False
-        self.isPrev = False
-        self.isShowC = False
-        self.isShowP = False
-        self.isParticles = False
-        self.isUndo = False
+        self.isParticles = False #para el checkbox 'draw particles' de la ventana
 
-        self.initIMG(filename,scale) #para pintar la imagen
+        #self.initIMG(filename,scale) #para pintar la imagen
 
         self.penColors = [Qt.red, Qt.magenta, Qt.blue, Qt.green] #lista de colores para el pen
 
