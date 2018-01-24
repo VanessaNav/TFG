@@ -9,6 +9,7 @@ from PyQt5.QtGui import QIcon
 
 from drawingCurves import Paint
 
+
 class MainWindow(QDialog): #ventana principal
     def __init__(self):
         QDialog.__init__(self)
@@ -30,7 +31,6 @@ class MainWindow(QDialog): #ventana principal
         self.layout.addWidget(self.menuBar,0,0)
         self.layout.addWidget(self.paint,1,0)
         self.layout.addLayout(self.grid,2,0)
-
 
     def initLayout(self):
         #configuracion de botones y checkbox's
@@ -106,7 +106,7 @@ class MainWindow(QDialog): #ventana principal
 
         if (screenWidth / ratio > screenHeight): #si la imagen no cabe de ancha...
             scale = screenHeight / actual_height #ajustarla con la altura de la imagen
-            #self.resize(screenWidth / ratio, screenHeight)
+            #self.resize(screenWidth / ratio, screenHeight +85)
             #self.setGeometry(10,30,screenWidth / ratio, screenHeight)
         else: #si la imagen no cabe de alta...
             scale = screenWidth / actual_width #ajustarla con la anchura de la imagen
@@ -124,8 +124,6 @@ class MainWindow(QDialog): #ventana principal
 
         scale = self.UpdateScreenWithImage(self.dir + "/" + self.imgSequence[self.imgN])
 
-        # self.resize(self.paint.pixMap.width(), self.paint.pixMap.height())
-
         self.paint.initIMG(self.dir + "/" + self.imgSequence[self.imgN], scale)  # pintar la siguiente imagen en la escena
 
         self.paint.loadCurves(self.dir + "/" + self.imgSequence[self.imgN] + ".json")
@@ -139,11 +137,13 @@ class MainWindow(QDialog): #ventana principal
 
     def isOpen(self):#cuando se elige la opcion open image sequence
         self.dir = str(QFileDialog.getExistingDirectory(self, "Select Directory"))
-
         self.imgSequence = fnmatch.filter(listdir(self.dir), '*.jpg')  # secuencia de imagenes
-        self.imgN = 0 #comenzar por la primera
-
-        self.load()
+        if self.imgSequence:
+            self.imgN = 0 #comenzar por la primera
+            self.load()
+            self.paint.globalList = []
+        else:
+            print("no images in this folder")
 
     def gen3D(self):
         #os.system("script2.py 1")
@@ -159,6 +159,7 @@ class MainWindow(QDialog): #ventana principal
             self.imgN += 1 #pasar a la siguiente imagen de la secuencia
 
             self.load()
+            self.paint.globalList = []
         else:
             print("There are no more images for this sequence")
 
@@ -172,13 +173,15 @@ class MainWindow(QDialog): #ventana principal
             self.imgN -= 1 #para pasar a la imagen anterior de la secuencia
 
             self.load()
+            self.paint.globalList = []
         else:
             print("There are no more images for this sequence")
 
     def isClear(self): #cuando se pulsa el boton CLEAR
         scale = self.UpdateScreenWithImage(self.dir + "/" + self.imgSequence[self.imgN])
 
-        self.paint.initIMG(self.dir + "/" + self.imgSequence[self.imgN],scale)  # pintar la imagen en la escena, SIN curvas ni puntos
+        self.paint.initIMG(self.dir + "/" + self.imgSequence[self.imgN], scale)  # pintar la imagen en la escena, SIN curvas ni puntos
+        self.paint.globalList = []
 
         #self.resize(self.paint.pixMap.width(), self.paint.pixMap.height())
 
@@ -212,26 +215,35 @@ class MainWindow(QDialog): #ventana principal
         self.writeJSON(self.dir + "/" + self.imgSequence[self.imgN] + ".json", self.paint.imgCurves)
         self.writeJSON(self.dir + "/" + self.imgSequence[self.imgN] + "_particles.json", self.paint.imgParticles)
 
+        globalList=self.paint.globalList
         self.load()
 
-        curveN = "curve" + str(self.paint.curveCounter)
-        particleN = "particle" + str(self.paint.particleCounter)
+        if globalList:
+            item = globalList.pop()
 
-        if any(self.paint.imgCurves):
-            self.paint.imgCurves.pop(curveN)
-            self.paint.curveCounter -= 1
-            self.writeJSON(self.dir + "/" + self.imgSequence[self.imgN] + ".json", self.paint.imgCurves)
-            self.load()
-        else:
-            print("Nothing to undo in curves dictionary")
+            if item.startswith("curve"):
 
-        if any(self.paint.imgParticles):
-            self.paint.imgParticles.pop(particleN)
-            self.paint.particleCounter -= 1
-            self.writeJSON(self.dir + "/" + self.imgSequence[self.imgN] + "_particles.json", self.paint.imgParticles)
-            self.load()
+                if self.paint.curveCounter-1 >0:
+                    curveN = "curve" + str(self.paint.curveCounter - 1)
+
+                    if any(self.paint.imgCurves):
+                        i=self.paint.imgCurves.pop(curveN)
+                        self.writeJSON(self.dir + "/" + self.imgSequence[self.imgN] + ".json", self.paint.imgCurves)
+                        self.paint.curveCounter -= 1
+                        self.load()
+
+            if item.startswith("particle"):
+
+                if self.paint.particleCounter-1 >0:
+                    particleN = "particle" + str(self.paint.particleCounter - 1)
+
+                    if any(self.paint.imgParticles):
+                        self.paint.imgParticles.pop(particleN)
+                        self.writeJSON(self.dir + "/" + self.imgSequence[self.imgN] + "_particles.json", self.paint.imgParticles)
+                        self.paint.particleCounter -= 1
+                        self.load()
         else:
-            print("Nothing to undo in particles dictionary")
+            print("Nothing to undo")
 
 app = QApplication(sys.argv)
 

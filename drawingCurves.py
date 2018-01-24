@@ -22,9 +22,11 @@ class Paint(QGraphicsView): #clase para crear el plano donde podremos dibujar
 
         self.penColors = [Qt.red, Qt.magenta, Qt.blue, Qt.green] #lista de colores para el pen
 
+        self.globalList = []  # lista para llevar ordenados los ids de curvas y particulas de las imagenes (para el UNDO)
+
         self.setScene(self.scene) # para incluir la escena en el plano
 
-    def initIMG(self,filename,scale):
+    def initIMG(self, filename, scale):
         self.scene.clear()  # con clear() se queda el plano en blanco
 
         self.colorN = 0 #coemnzamos pintando curvas en rojo
@@ -53,6 +55,7 @@ class Paint(QGraphicsView): #clase para crear el plano donde podremos dibujar
 
         scenePix = self.scene.addPixmap(self.pixMap)  # añadimos la imagen (escalada) a la escena
         scenePix.setPos(-350, -70)  # para que la imagen este en la esquina superior izquierda
+        #scenePix.setPos(-160, -70)  # para que la imagen este en la esquina superior izquierda
 
     def draw(self, e): #funcion para pintar
         pen = QPen(self.penColors[self.colorN])
@@ -94,6 +97,10 @@ class Paint(QGraphicsView): #clase para crear el plano donde podremos dibujar
 
             # diccionario para asociar una lista de puntos a cada una de las curvas de la imagen
             self.imgCurves.update({curveN:self.pointList})
+
+            #añadir el id de la curva a la lista global
+            self.globalList.append(curveN)
+
             # una vez guardados los puntos de una curva, reiniciamos la lista de puntos
             self.pointList = []
         else:
@@ -105,6 +112,11 @@ class Paint(QGraphicsView): #clase para crear el plano donde podremos dibujar
 
             # diccionario para asociar una lista de puntos a cada una de las particulas de la imagen
             self.imgParticles.update({particleN: self.particleList})
+
+            # añadir el id de la particula a la lista global
+            self.globalList.append(particleN)
+            print(self.globalList)
+
             # una vez guardados los puntos de una particula, reiniciamos la lista de particulas
             self.particleList = []
 
@@ -115,7 +127,7 @@ class Paint(QGraphicsView): #clase para crear el plano donde podremos dibujar
                 s=f.read()
                 self.imgCurves = json.loads(s)
                 if any(self.imgCurves):
-                    self.drawPastPoints(self.imgCurves, self.curveCounter, scale)
+                    self.drawPastCurves(self.imgCurves, scale)
                 else:
                     print("there are no curves for this image")
         else:
@@ -128,15 +140,25 @@ class Paint(QGraphicsView): #clase para crear el plano donde podremos dibujar
                 s = f.read()
                 self.imgParticles = json.loads(s)
                 if any(self.imgParticles):
-                    self.drawPastPoints(self.imgParticles, self.particleCounter, scale)
+                    self.drawPastParticles(self.imgParticles, scale)
                 else:
                     print("there are no particles for this image")
         else:
             print("there's no json file for this image")
 
-    def drawPastPoints(self, dic, counter, scale):
+    def drawPastCurves(self, dic, scale):
         for curve, points in dic.items():
-            counter += 1
+            self.curveCounter += 1
+            if not scale == None:  # aplicar escala a la imagen
+                points = [(x / scale, y / scale) for (x, y) in points]
+
+            for p in points:
+                e = QPointF(p[0], p[1])  # crear un punto en la posición marcada por el json
+                self.draw(e)
+
+    def drawPastParticles(self, dic, scale):
+        for particle, points in dic.items():
+            self.particleCounter += 1
             if not scale == None:  # aplicar escala a la imagen
                 points = [(x / scale, y / scale) for (x, y) in points]
 
@@ -151,7 +173,7 @@ class Paint(QGraphicsView): #clase para crear el plano donde podremos dibujar
                 s = f.read()
                 dic = json.loads(s)
                 if any(dic):
-                    self.drawPastPoints(dic, self.curveCounter, scale)
+                    self.drawPastCurves(dic, scale)
                 else:
                     print("there are no curves for this image")
         else:
@@ -164,7 +186,7 @@ class Paint(QGraphicsView): #clase para crear el plano donde podremos dibujar
                 s = f.read()
                 dic = json.loads(s)
                 if any(dic):
-                    self.drawPastPoints(dic, self.particleCounter, scale)
+                    self.drawPastParticles(dic, scale)
                 else:
                     print("there are no particles for this image")
         else:
