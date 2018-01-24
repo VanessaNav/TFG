@@ -130,9 +130,11 @@ class MainWindow(QDialog): #ventana principal
         self.paint.loadParticles(self.dir + "/" + self.imgSequence[self.imgN] + "_particles.json")
 
         if self.check_showC.isChecked():
+            #self.paint.isShowC = True
             self.paint.showPrevCurves(self.dir + "/" + self.imgSequence[self.imgN - 1] + ".json")
 
         if self.check_showP.isChecked():
+            #self.paint.isShowP = True
             self.paint.showPrevParticles(self.dir + "/" + self.imgSequence[self.imgN - 1] + "_particles.json")
 
     def isOpen(self):#cuando se elige la opcion open image sequence
