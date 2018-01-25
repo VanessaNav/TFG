@@ -2,7 +2,7 @@ import json
 import os.path
 from PyQt5.QtWidgets import QGraphicsView, QGraphicsScene, QGraphicsLineItem
 from PyQt5.QtCore import QPointF, QRectF, Qt, QLineF
-from PyQt5.QtGui import QPen, QBrush, QPixmap, QImage
+from PyQt5.QtGui import QPen, QBrush, QPixmap, QImage, QColor
 
 #COPIA ADAPTADA DE: http://jquery-manual.blogspot.com.es/2015/07/16-python-pyqt-interfaz-grafica.html
 
@@ -20,7 +20,7 @@ class Paint(QGraphicsView): #clase para crear el plano donde podremos dibujar
 
         self.isParticles = False #para dibujar particulas
 
-        self.penColors = [Qt.red, Qt.magenta, Qt.blue, Qt.green] #lista de colores para el pen
+        self.penColors = [Qt.red, QColor.fromRgb(255,105,180), Qt.blue, Qt.green] #lista de colores para el pen
 
         self.globalList = []  # lista para llevar ordenados los ids de curvas y particulas de las imagenes (para el UNDO)
 
@@ -52,10 +52,10 @@ class Paint(QGraphicsView): #clase para crear el plano donde podremos dibujar
         scenePix.setPos(-350, -70)  # para que la imagen este en la esquina superior izquierda
         #scenePix.setPos(-160, -70)  # para que la imagen este en la esquina superior izquierda
 
-    def draw(self, e, thickness, brushPattern, width=1): #funcion para pintar
+    def draw(self, e, thickness, width=1): #funcion para pintar
         self.pen = QPen(self.penColors[self.colorN])
         self.pen.setWidth(width)
-        brush = QBrush(brushPattern) #para que lo que se dibuje no tenga transparencia
+        brush = QBrush(Qt.SolidPattern) #para que lo que se dibuje no tenga transparencia
         # incluir el pen a la escena: el pen dibuja circulos (puntos gordos)
         self.scene.addItem(self.scene.addEllipse(e.x(), e.y(), thickness, thickness, self.pen, brush))
 
@@ -67,7 +67,7 @@ class Paint(QGraphicsView): #clase para crear el plano donde podremos dibujar
         self.colorN = 0
         self.pointList.append((e.x(), e.y()))  # añadir el punto a la lista de puntos para las curvas
 
-        self.draw(e, 1, Qt.SolidPattern) #para dibujar el punto de la curva/particula
+        self.draw(e, 1) #para dibujar el punto de la curva/particula
 
     def mouseMoveEvent(self, event): #cuando se mueve el raton
         e = QPointF(self.mapToScene(event.pos()))#crear un punto en la posición marcada por el raton
@@ -75,7 +75,7 @@ class Paint(QGraphicsView): #clase para crear el plano donde podremos dibujar
         self.colorN = 0
         self.pointList.append((e.x(), e.y()))  # añadir el punto a la lista de puntos para las curvas
 
-        self.draw(e, 1, Qt.SolidPattern) #para dibujar el punto de la curva/particula
+        self.draw(e, 1) #para dibujar el punto de la curva/particula
 
     def mouseReleaseEvent(self, event, scale=None):
         if len(self.pointList) > self.N:
@@ -104,6 +104,7 @@ class Paint(QGraphicsView): #clase para crear el plano donde podremos dibujar
             self.isParticles = True
 
             particle = self.pointList.pop()
+            p = particle
 
             if not scale == None:  # aplicar escala a la imagen
                 #self.particleList = [(x * scale, y * scale) for (x, y) in self.particleList]
@@ -123,8 +124,10 @@ class Paint(QGraphicsView): #clase para crear el plano donde podremos dibujar
             self.pointList = []
 
             self.colorN = 2
-            e = QPointF(particle[0], particle[1])
-            self.draw(e, 8, Qt.NoBrush, 2)
+            e = QPointF(p[0], p[1])
+            e.setX(e.x() - 3)
+            e.setY(e.y() - 3)
+            self.draw(e, 8, 2)
 
     def endCurveWithLine(self, start, end):
         startPoint = QPointF(start[0], start[1])
@@ -141,7 +144,7 @@ class Paint(QGraphicsView): #clase para crear el plano donde podremos dibujar
                 s=f.read()
                 self.imgCurves = json.loads(s)
                 if any(self.imgCurves):
-                    self.drawPastCurves(self.imgCurves, 1, Qt.SolidPattern, scale)
+                    self.drawPastCurves(self.imgCurves, 1, scale)
                 else:
                     print("there are no curves for this image")
         else:
@@ -154,13 +157,13 @@ class Paint(QGraphicsView): #clase para crear el plano donde podremos dibujar
                 s = f.read()
                 self.imgParticles = json.loads(s)
                 if any(self.imgParticles):
-                    self.drawPastParticles(self.imgParticles, 8, Qt.NoBrush, scale)
+                    self.drawPastParticles(self.imgParticles, 8, scale)
                 else:
                     print("there are no particles for this image")
         else:
             print("there's no json file for this image")
 
-    def drawPastCurves(self, dic, thickness, brushPattern, scale):
+    def drawPastCurves(self, dic, thickness, scale):
         for curve, points in dic.items():
             self.curveCounter += 1
             if not scale == None:  # aplicar escala a la imagen
@@ -168,7 +171,7 @@ class Paint(QGraphicsView): #clase para crear el plano donde podremos dibujar
 
             for p in points:
                 e = QPointF(p[0], p[1])  # crear un punto en la posición marcada por el json
-                self.draw(e, thickness, brushPattern)
+                self.draw(e, thickness)
 
             # terminar la curva con una linea recta
             start = points[0]
@@ -176,14 +179,14 @@ class Paint(QGraphicsView): #clase para crear el plano donde podremos dibujar
             self.endCurveWithLine(start, end)
 
 
-    def drawPastParticles(self, dic, thickness, brushPattern, scale):
+    def drawPastParticles(self, dic, thickness, scale):
         for keyN, particle in dic.items():
             self.particleCounter += 1
             if not scale == None:
                 particle[0] = particle[0] / scale
                 particle[1] = particle[1] / scale
             e = QPointF(particle[0], particle[1])
-            self.draw(e, thickness, brushPattern, 2)
+            self.draw(e, thickness, 2)
 
     def showPrevCurves(self, inputName, scale=None):
         self.colorN = 1
@@ -192,7 +195,7 @@ class Paint(QGraphicsView): #clase para crear el plano donde podremos dibujar
                 s = f.read()
                 dic = json.loads(s)
                 if any(dic):
-                    self.drawPastCurves(dic, 1, Qt.SolidPattern, scale)
+                    self.drawPastCurves(dic, 0.5, scale)
                 else:
                     print("there are no curves for this image")
         else:
@@ -205,7 +208,7 @@ class Paint(QGraphicsView): #clase para crear el plano donde podremos dibujar
                 s = f.read()
                 dic = json.loads(s)
                 if any(dic):
-                    self.drawPastParticles(dic, 8, Qt.NoBrush, scale)
+                    self.drawPastParticles(dic, 8, scale)
                 else:
                     print("there are no particles for this image")
         else:
