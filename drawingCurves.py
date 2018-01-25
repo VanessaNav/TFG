@@ -71,7 +71,7 @@ class Paint(QGraphicsView): #clase para crear el plano donde podremos dibujar
 
     def mouseMoveEvent(self, event): #cuando se mueve el raton
         e = QPointF(self.mapToScene(event.pos()))#crear un punto en la posición marcada por el raton
-        #if not self.isParticles:
+
         self.colorN = 0
         self.pointList.append((e.x(), e.y()))  # añadir el punto a la lista de puntos para las curvas
 

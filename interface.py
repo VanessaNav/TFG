@@ -38,7 +38,6 @@ class MainWindow(QDialog): #ventana principal
         self.btn_prev = QPushButton()
         self.btn_clear = QPushButton("Clear")
         self.btn_undo = QPushButton("Undo")
-        self.check_particles = QCheckBox("Draw Particles")
         self.check_showC = QCheckBox("Previous Image Curves")
         self.check_showP = QCheckBox("Previous Image Particles")
 
@@ -46,7 +45,6 @@ class MainWindow(QDialog): #ventana principal
         self.btn_next.setIcon(QIcon('resources/next.png'))
         self.check_showC.setChecked(False)
         self.check_showP.setChecked(False)
-        self.check_particles.setChecked(False)
 
         self.btn_clear.clicked.connect(self.isClear)
         self.btn_next.clicked.connect(self.isNext)
@@ -54,7 +52,6 @@ class MainWindow(QDialog): #ventana principal
         self.check_showC.clicked.connect(self.isShow)
         self.check_showP.clicked.connect(self.isShow)
         self.btn_undo.clicked.connect(self.isUndo)
-        self.check_particles.clicked.connect(self.isParticles)
 
         self.btn_next.setFixedWidth(50)
         self.btn_prev.setFixedWidth(50)
@@ -68,7 +65,6 @@ class MainWindow(QDialog): #ventana principal
         box.addWidget(self.btn_prev)
         box.addWidget(self.btn_next)
         box.addStretch()
-        box.addWidget(self.check_particles)
         box.addWidget(self.check_showC)
         box.addWidget(self.check_showP)
         box.addWidget(self.btn_undo)
@@ -130,11 +126,9 @@ class MainWindow(QDialog): #ventana principal
         self.paint.loadParticles(self.dir + "/" + self.imgSequence[self.imgN] + "_particles.json")
 
         if self.check_showC.isChecked():
-            #self.paint.isShowC = True
             self.paint.showPrevCurves(self.dir + "/" + self.imgSequence[self.imgN - 1] + ".json")
 
         if self.check_showP.isChecked():
-            #self.paint.isShowP = True
             self.paint.showPrevParticles(self.dir + "/" + self.imgSequence[self.imgN - 1] + "_particles.json")
 
     def isOpen(self):#cuando se elige la opcion open image sequence
@@ -185,12 +179,9 @@ class MainWindow(QDialog): #ventana principal
         self.paint.initIMG(self.dir + "/" + self.imgSequence[self.imgN], scale)  # pintar la imagen en la escena, SIN curvas ni puntos
         self.paint.globalList = []
 
-        #self.resize(self.paint.pixMap.width(), self.paint.pixMap.height())
-
         # dejar vacios los json cuando se pulse clear?
         self.writeJSON(self.dir + "/" + self.imgSequence[self.imgN] + ".json", self.paint.imgCurves)
         self.writeJSON(self.dir + "/" + self.imgSequence[self.imgN] + "_particles.json", self.paint.imgParticles)
-
 
     def isShow(self):
         # escribimos un archivo json con el diccionario de curvas de una imagen (su titulo es el nombre de la imagen)
