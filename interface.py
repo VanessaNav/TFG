@@ -3,11 +3,18 @@ import fnmatch
 import cv2
 import sys
 from os import listdir
+import pyqtgraph.opengl as gl
+
+import numpy
 from PyQt5.QtWidgets import QApplication, QDialog, QGridLayout, QPushButton, \
     QAction, QMenuBar, QFileDialog, QCheckBox, QHBoxLayout, QDesktopWidget
 from PyQt5.QtGui import QIcon
 
 from drawingCurves import Paint
+import subprocess
+
+from messing import show3D
+from testingArea import getMask
 
 
 class MainWindow(QDialog): #ventana principal
@@ -115,6 +122,29 @@ class MainWindow(QDialog): #ventana principal
         with open(outputName, 'w') as f:
             json.dump(dic, f)
 
+        if any(dic):
+            self.generateMask(outputName,dic)
+
+    def generateMask(self, outputName, dic):
+        if 'particles' not in outputName:
+            finalMaskCurves = numpy.zeros((self.paint.pixMap.height(), self.paint.pixMap.width()))
+
+            for keyN, points in dic.items():
+                mask = getMask(dic[keyN], (self.paint.pixMap.width(), self.paint.pixMap.height()))
+                finalMaskCurves[mask] = 255
+
+            cv2.imwrite(self.dir + "/" + self.imgSequence[self.imgN] + '_maskCurves.png', finalMaskCurves)
+        else:
+            finalMaskParticles = numpy.zeros((self.paint.pixMap.height(), self.paint.pixMap.width()))
+
+            for keyN, points in dic.items():
+                px = int(points[0]) + 350
+                py = int(points[1]) + 70
+                #primero la x y luego la y: 'x' son las columnas e 'y' las filas de la matriz de la imagen
+                finalMaskParticles[py, px] = 255
+
+            cv2.imwrite(self.dir + "/" + self.imgSequence[self.imgN] + '_maskParticles.png', finalMaskParticles)
+
     def load(self):
         self.setWindowTitle("drawingCurves_" + self.imgSequence[self.imgN])  # titulo de la ventana
 
@@ -142,8 +172,26 @@ class MainWindow(QDialog): #ventana principal
             print("no images in this folder")
 
     def gen3D(self):
-        #os.system("script2.py 1")
-        print('llamar al script de blender???')
+        allPoints = dict()
+        imgCount = -1
+
+        jsonFiles = fnmatch.filter(listdir(self.dir), '*.json')  # secuencia de json
+
+        for file in jsonFiles:
+            if 'particles' not in file:
+                file = self.dir + "/" + file
+
+                with open(file, 'r') as f:
+                    s = f.read()
+                    dic = json.loads(s)
+
+                    if any(dic):
+                        imgCount += 1
+                        for keyN, points in dic.items():
+                            points = numpy.subtract(points, [-350, -70])
+                            allPoints.update({imgCount:points})
+        #print(allPoints)
+        show3D(allPoints)
 
     def isNext(self): #cuando se pulsa 'siguiente imagen'
         if self.imgN < len(self.imgSequence) - 1:
@@ -237,6 +285,8 @@ class MainWindow(QDialog): #ventana principal
                         self.load()
         else:
             print("Nothing to undo")
+
+
 
 app = QApplication(sys.argv)
 

@@ -1,14 +1,17 @@
 import json
 import os.path
+
+import cv2
+import numpy
 from PyQt5.QtWidgets import QGraphicsView, QGraphicsScene, QGraphicsLineItem
 from PyQt5.QtCore import QPointF, QRectF, Qt, QLineF
 from PyQt5.QtGui import QPen, QBrush, QPixmap, QImage, QColor
 
 #COPIA ADAPTADA DE: http://jquery-manual.blogspot.com.es/2015/07/16-python-pyqt-interfaz-grafica.html
 
-
-
 from erosioning import cropImageBorders
+from testingArea import getMask
+
 
 class Paint(QGraphicsView): #clase para crear el plano donde podremos dibujar
     def __init__(self):
@@ -27,6 +30,8 @@ class Paint(QGraphicsView): #clase para crear el plano donde podremos dibujar
         self.N = 10 #numero de puntos a partir del cual lo dibujado se corresponde a una curva y no a una particula
 
         self.setScene(self.scene) # para incluir la escena en el plano
+
+        self.previousPoint = None #para quitar la separacion entre puntos cuando se dibuja muy rapido
 
     def initIMG(self, filename, scale):
         self.scene.clear()  # con clear() se queda el plano en blanco
@@ -64,6 +69,8 @@ class Paint(QGraphicsView): #clase para crear el plano donde podremos dibujar
     def mousePressEvent(self, event): #cuando se pulsa el raton
         e = QPointF(self.mapToScene(event.pos())) #crear un punto en la posición marcada por el raton
 
+        self.previousPoint = (e.x(), e.y())
+
         self.colorN = 0
         self.pointList.append((e.x(), e.y()))  # añadir el punto a la lista de puntos para las curvas
 
@@ -71,6 +78,9 @@ class Paint(QGraphicsView): #clase para crear el plano donde podremos dibujar
 
     def mouseMoveEvent(self, event): #cuando se mueve el raton
         e = QPointF(self.mapToScene(event.pos()))#crear un punto en la posición marcada por el raton
+
+        self.completeWithLine(self.previousPoint, (e.x(), e.y()))
+        self.previousPoint = (e.x(), e.y())
 
         self.colorN = 0
         self.pointList.append((e.x(), e.y()))  # añadir el punto a la lista de puntos para las curvas
@@ -87,7 +97,7 @@ class Paint(QGraphicsView): #clase para crear el plano donde podremos dibujar
             # terminar la curva con una linea recta
             start = self.pointList[0]
             end = self.pointList[len(self.pointList) - 1]
-            self.endCurveWithLine(start, end)
+            self.completeWithLine(start, end)
 
             curveN = "curve" + str(self.curveCounter)
             self.curveCounter += 1  # el contador de curva es la clave del diccionario
@@ -129,7 +139,7 @@ class Paint(QGraphicsView): #clase para crear el plano donde podremos dibujar
             e.setY(e.y() - 3)
             self.draw(e, 8, 2)
 
-    def endCurveWithLine(self, start, end):
+    def completeWithLine(self, start, end):
         startPoint = QPointF(start[0], start[1])
         endPoint = QPointF(end[0], end[1])
         self.line = QGraphicsLineItem(QLineF(startPoint, endPoint))
@@ -166,18 +176,26 @@ class Paint(QGraphicsView): #clase para crear el plano donde podremos dibujar
     def drawPastCurves(self, dic, thickness, scale):
         for curve, points in dic.items():
             self.curveCounter += 1
+
             if not scale == None:  # aplicar escala a la imagen
                 points = [(x / scale, y / scale) for (x, y) in points]
 
-            for p in points:
-                e = QPointF(p[0], p[1])  # crear un punto en la posición marcada por el json
+            for i in range(len(points) - 1):
+                e = QPointF(points[i][0], points[i][1])  # crear un punto en la posición marcada por el json
                 self.draw(e, thickness)
+
+                # volver a dibujar los puntos de la curva, sin separaciones entre ellos
+                distance = numpy.sqrt(
+                    ((points[i][0] - points[i + 1][0]) ** 2) +
+                    ((points[i][1] - points[i + 1][1]) ** 2)
+                )
+                if distance > 2:
+                    self.completeWithLine(points[i], points[i + 1])
 
             # terminar la curva con una linea recta
             start = points[0]
             end = points[len(points) - 1]
-            self.endCurveWithLine(start, end)
-
+            self.completeWithLine(start, end)
 
     def drawPastParticles(self, dic, thickness, scale):
         for keyN, particle in dic.items():
