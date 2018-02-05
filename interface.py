@@ -3,18 +3,14 @@ import fnmatch
 import cv2
 import sys
 from os import listdir
-import pyqtgraph.opengl as gl
-
 import numpy
 from PyQt5.QtWidgets import QApplication, QDialog, QGridLayout, QPushButton, \
     QAction, QMenuBar, QFileDialog, QCheckBox, QHBoxLayout, QDesktopWidget
 from PyQt5.QtGui import QIcon
 
 from drawingCurves import Paint
-import subprocess
-
-from messing import show3D
-from testingArea import getMask
+from messing import show3D, getAllPoints
+#from messing2 import show3D
 
 
 class MainWindow(QDialog): #ventana principal
@@ -122,64 +118,52 @@ class MainWindow(QDialog): #ventana principal
         with open(outputName, 'w') as f:
             json.dump(dic, f)
 
-        if any(dic):
-            self.generateMask(outputName,dic)
-
-    def generateMask(self, outputName, dic):
-        if 'particles' not in outputName:
-            finalMaskCurves = numpy.zeros((self.paint.pixMap.height(), self.paint.pixMap.width()))
-
-            for keyN, points in dic.items():
-                mask = getMask(dic[keyN], (self.paint.pixMap.width(), self.paint.pixMap.height()))
-                finalMaskCurves[mask] = 255
-
-            cv2.imwrite(self.dir + "/" + self.imgSequence[self.imgN] + '_maskCurves.png', finalMaskCurves)
-        else:
-            finalMaskParticles = numpy.zeros((self.paint.pixMap.height(), self.paint.pixMap.width()))
-
-            for keyN, points in dic.items():
-                px = int(points[0]) + 350
-                py = int(points[1]) + 70
-                #primero la x y luego la y: 'x' son las columnas e 'y' las filas de la matriz de la imagen
-                finalMaskParticles[py, px] = 255
-
-            cv2.imwrite(self.dir + "/" + self.imgSequence[self.imgN] + '_maskParticles.png', finalMaskParticles)
-
     def load(self):
         self.setWindowTitle("drawingCurves_" + self.imgSequence[self.imgN])  # titulo de la ventana
 
-        scale = self.UpdateScreenWithImage(self.dir + "/" + self.imgSequence[self.imgN])
+        currentImg = self.dir + "/" + self.imgSequence[self.imgN]
 
-        self.paint.initIMG(self.dir + "/" + self.imgSequence[self.imgN], scale)  # pintar la siguiente imagen en la escena
+        scale = self.UpdateScreenWithImage(currentImg)
+
+        if self.check_showC.isChecked():
+            currentImg = self.paint.showPrevCurves(currentImg, self.dir + "/" + self.imgSequence[self.imgN - 1] + ".json")
+
+        self.paint.initIMG(currentImg, scale)  # pintar la siguiente imagen en la escena
 
         self.paint.loadCurves(self.dir + "/" + self.imgSequence[self.imgN] + ".json")
         self.paint.loadParticles(self.dir + "/" + self.imgSequence[self.imgN] + "_particles.json")
-
-        if self.check_showC.isChecked():
-            self.paint.showPrevCurves(self.dir + "/" + self.imgSequence[self.imgN - 1] + ".json")
 
         if self.check_showP.isChecked():
             self.paint.showPrevParticles(self.dir + "/" + self.imgSequence[self.imgN - 1] + "_particles.json")
 
     def isOpen(self):#cuando se elige la opcion open image sequence
         self.dir = str(QFileDialog.getExistingDirectory(self, "Select Directory"))
-        self.imgSequence = fnmatch.filter(listdir(self.dir), '*.jpg')  # secuencia de imagenes
-        if self.imgSequence:
-            self.imgN = 0 #comenzar por la primera
-            self.load()
-            self.paint.globalList = []
+        if self.dir:
+            self.imgSequence = fnmatch.filter(listdir(self.dir), '*.jpg')  # secuencia de imagenes
+            if self.imgSequence:
+                self.imgN = 0 #comenzar por la primera
+                self.load()
+                self.paint.globalList = []
+            else:
+                print("no images in this folder")
         else:
-            print("no images in this folder")
+            print("No folder was selected")
 
     def gen3D(self):
+        # escribimos un archivo json con el diccionario de curvas de una imagen (su titulo es el nombre de la imagen)
+        self.writeJSON(self.dir + "/" + self.imgSequence[self.imgN] + ".json", self.paint.imgCurves)
+        # escribimos un archivo json con el diccionario de particulas de una imagen (su titulo es el nombre de la imagen_particles)
+        self.writeJSON(self.dir + "/" + self.imgSequence[self.imgN] + "_particles.json", self.paint.imgParticles)
+
+        '''
+        jsonFiles = fnmatch.filter(listdir(self.dir), '*.json')  # secuencia de json
+
         allPoints = dict()
         imgCount = -1
 
-        jsonFiles = fnmatch.filter(listdir(self.dir), '*.json')  # secuencia de json
-
         for file in jsonFiles:
             if 'particles' not in file:
-                file = self.dir + "/" + file
+                file = self.dir + '/' + file
 
                 with open(file, 'r') as f:
                     s = f.read()
@@ -189,8 +173,11 @@ class MainWindow(QDialog): #ventana principal
                         imgCount += 1
                         for keyN, points in dic.items():
                             points = numpy.subtract(points, [-350, -70])
-                            allPoints.update({imgCount:points})
-        #print(allPoints)
+                            allPoints.update({imgCount: points})
+        '''
+
+        allPoints = getAllPoints(self.dir)
+
         show3D(allPoints)
 
     def isNext(self): #cuando se pulsa 'siguiente imagen'
@@ -204,6 +191,14 @@ class MainWindow(QDialog): #ventana principal
 
             self.load()
             self.paint.globalList = []
+
+        elif self.imgN == len(self.imgSequence) - 1:
+            # escribimos un archivo json con el diccionario de curvas de una imagen (su titulo es el nombre de la imagen)
+            self.writeJSON(self.dir + "/" + self.imgSequence[self.imgN] + ".json", self.paint.imgCurves)
+            # escribimos un archivo json con el diccionario de particulas de una imagen (su titulo es el nombre de la imagen_particles)
+            self.writeJSON(self.dir + "/" + self.imgSequence[self.imgN] + "_particles.json", self.paint.imgParticles)
+            self.paint.globalList = []
+
         else:
             print("There are no more images for this sequence")
 
@@ -260,7 +255,9 @@ class MainWindow(QDialog): #ventana principal
         self.load()
 
         if globalList:
+            print(globalList)
             item = globalList.pop()
+            print(item)
 
             if item.startswith("curve"):
 

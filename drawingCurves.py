@@ -206,18 +206,30 @@ class Paint(QGraphicsView): #clase para crear el plano donde podremos dibujar
             e = QPointF(particle[0], particle[1])
             self.draw(e, thickness, 2)
 
-    def showPrevCurves(self, inputName, scale=None):
-        self.colorN = 1
-        if os.path.isfile(inputName):
-            with open(inputName, 'r') as f:
+    def showPrevCurves(self, currentImg, prevImg):
+        if os.path.isfile(prevImg):
+            with open(prevImg, 'r') as f:
                 s = f.read()
                 dic = json.loads(s)
                 if any(dic):
-                    self.drawPastCurves(dic, 0.5, scale)
+                    self.generateMask(prevImg, dic)
+
+                    #imgName = prevImg[:-5]
+                    img = cv2.imread(currentImg)
+                    small = cv2.resize(img, (self.finalMaskCurves.shape[1],self.finalMaskCurves.shape[0]))
+                    small[self.finalMaskCurves==0] //= 2
+
+                    img = cv2.resize(small, (img.shape[1], img.shape[0]))
+                    cv2.imwrite(currentImg + '_masked.png' ,img)
+                    return currentImg + '_masked.png'
                 else:
-                    print("there are no curves for this image")
+                    img = cv2.imread(currentImg)
+                    img //= 2
+                    cv2.imwrite(currentImg + '_masked.png', img)
+                    return currentImg + '_masked.png'
         else:
-            print("there's no json file for this image")
+            return currentImg
+
 
     def showPrevParticles(self, inputName, scale=None):
         self.colorN = 3
@@ -232,4 +244,22 @@ class Paint(QGraphicsView): #clase para crear el plano donde podremos dibujar
         else:
             print("there's no json file for this image")
 
+    def generateMask(self, outputName, dic):
+        if 'particles' not in outputName:
+            self.finalMaskCurves = numpy.zeros((self.pixMap.height(), self.pixMap.width()))
 
+            for keyN, points in dic.items():
+                mask = getMask(dic[keyN], (self.pixMap.width(), self.pixMap.height()))
+                self.finalMaskCurves[mask] = 255
+
+            #cv2.imwrite(outputName + '_maskCurves.png', self.finalMaskCurves)
+        else:
+            self.finalMaskParticles = numpy.zeros((self.pixMap.height(), self.pixMap.width()))
+
+            for keyN, points in dic.items():
+                px = int(points[0]) + 350
+                py = int(points[1]) + 70
+                #primero la x y luego la y: 'x' son las columnas e 'y' las filas de la matriz de la imagen
+                self.finalMaskParticles[py, px] = 255
+
+            #cv2.imwrite(outputName + '_maskParticles.png', self.finalMaskParticles)

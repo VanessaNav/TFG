@@ -1,9 +1,23 @@
-from pyqtgraph.Qt import QtCore, QtGui
-import pyqtgraph as pg
+import fnmatch
+import json
+import numpy
 import pyqtgraph.opengl as gl
 import numpy as np
+from os import listdir
 
+faces = np.array([
+    [0, 249, 374],
+    [0, 249, 498],
+    [0, 374, 498],
+    [249, 374, 498]
+])
 
+colors = np.array([
+    [1, 0, 0, 0.3],
+    [0, 1, 0, 0.3],
+    [0, 0, 1, 0.3],
+    [1, 1, 0, 0.3]
+])
 
 def createGrid():
     w = gl.GLViewWidget()
@@ -17,33 +31,46 @@ def createGrid():
 
     return w
 
-def show3D(dic):
+def show3D(mat):
     w = createGrid()
 
-    for i in dic.keys():
-        z = np.ones( (len(dic[i]), 1) ) * (i+4)
-        p = np.hstack((dic[i], z))
-        face = np.arange(len(dic[i]))
-        m = gl.GLMeshItem(vertexes=p, faces=np.array([face]))  # , faceColors=colors, smooth=False)
-        w.addItem(m)
-
-
-    '''
-    npPoints = np.subtract(npPoints, [-350, -70])
-
-    zeros = np.zeros((len(npPoints), 1))
-    npPoints = np.hstack((npPoints, zeros))  # añadir eje z 0
-    ones = np.ones((len(p2), 1)) 
-    #p2 = np.hstack((p2, ones))  # añadir eje z 1
-
-    face = np.arange(len(npPoints))
-    #fac2 = np.arange(len(p2))
-
-    m = gl.GLMeshItem(vertexes=npPoints, faces=np.array([face]))  # , faceColors=colors, smooth=False)
+    m = gl.GLMeshItem(vertexes=mat, faces=faces, faceColors=colors, smooth=False)
     w.addItem(m)
 
-    #me = gl.GLMeshItem(vertexes=p2, faces=np.array([fac2]))  # , faceColors=colors, smooth=False)
-    #w.addItem(me)
-    '''
+def getAllPoints(dir):
+    jsonFiles = fnmatch.filter(listdir(dir), '*.json')  # secuencia de json
 
+    allPoints = dict()
+    imgCount = -1
+
+    for file in jsonFiles:
+        if 'particles' not in file:
+            file = dir + '/' + file
+
+            with open(file, 'r') as f:
+                s = f.read()
+                dic = json.loads(s)
+
+                if any(dic):
+                    imgCount += 1
+                    for keyN, points in dic.items():
+                        points = numpy.subtract(points, [-350, -70])
+                        allPoints.update({imgCount: points})
+
+    arr = getAllPointsFromDic(allPoints)
+    return arr
+
+def getAllPointsFromDic(allPoints):
+    allP = []
+
+    if any(allPoints):
+        for i in allPoints.keys():
+            z = np.ones((len(allPoints[i]), 1)) * (i * 2)  # coordenadas del eje z a añadir
+            p = np.hstack((allPoints[i], z))  # añadimos el eje z como una nueva columna
+
+            allP += p.tolist()  # como no me sale con np, lo paso a lista y voy concatenando los puntos con +=
+
+        allP = np.array(allP)  # pasarlo a array otra vez
+
+    return allP
 
