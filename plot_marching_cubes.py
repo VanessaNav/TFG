@@ -23,24 +23,38 @@ voxel spacing is not equal for every spatial dimension, through use of the
 import numpy as np
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection
-
+import cv2
 from skimage import measure
 from skimage.draw import ellipsoid
 
-from messing import getAllPoints
+from points import getAllPoints
 
 # Generate a level set about zero of two identical ellipsoids in 3D
 ellip_base = ellipsoid(6, 10, 16, levelset=True)
 ellip_double = np.concatenate((ellip_base[:-1, ...],
                                ellip_base[2:, ...]), axis=0)
 
-'''
-a = getAllPoints('IMAGES')
-verts, faces, normals, values = measure.marching_cubes_lewiner(a, 0)
-'''
+
+positives = ellip_base>0.5
+
+ellip_base[positives]=0.5
+
+#a = getAllPoints('IMAGES')
+#verts, faces, normals, values = measure.marching_cubes_lewiner(a, 0)
 
 # Use marching cubes to obtain the surface mesh of these ellipsoids
-verts, faces, normals, values = measure.marching_cubes_lewiner(ellip_double, 0)
+verts, faces, normals, values = measure.marching_cubes_lewiner(ellip_base, 0)
+print('verts: ')
+print(verts)
+print('faces: ')
+print(faces)
+print('normals: ')
+print(normals)
+print('values: ')
+print(values)
+print('Mesh Surface Area: ')
+s = measure.mesh_surface_area(verts, faces)
+print(s)
 
 # Display resulting triangular mesh using Matplotlib. This can also be done
 # with mayavi (see skimage.measure.marching_cubes_lewiner docstring).
@@ -49,6 +63,7 @@ ax = fig.add_subplot(111, projection='3d')
 
 # Fancy indexing: `verts[faces]` to generate a collection of triangles
 mesh = Poly3DCollection(verts[faces])
+print(verts[faces])
 mesh.set_edgecolor('k')
 ax.add_collection3d(mesh)
 

@@ -67,7 +67,7 @@ w.addItem(me)
 '''
 
 m1 = gl.GLMeshItem(vertexes=verts, faces=faces, faceColors=colors, smooth=False)
-#m1.translate(5, 5, 0)
+m1.translate(5, 5, 0)
 #m1.setGLOptions('additive')
 w.addItem(m1)
 
@@ -84,7 +84,7 @@ colors = np.random.random(size=(verts.shape[0], 3, 4))
 m2 = gl.GLMeshItem(vertexes=verts, vertexColors=colors, smooth=False, shader='balloon',
                    drawEdges=True, edgeColor=(1, 1, 0, 1))
 m2.translate(-5, 5, 0)
-#w.addItem(m2)
+w.addItem(m2)
 
 ## Example 3:
 ## sphere
