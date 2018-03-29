@@ -2,7 +2,7 @@ import json
 import fnmatch
 import cv2
 import sys
-from os import listdir
+import os
 import time
 from PyQt5.QtWidgets import QApplication, QDialog, QGridLayout, QPushButton, \
     QAction, QMenuBar, QFileDialog, QCheckBox, QHBoxLayout, QDesktopWidget
@@ -11,7 +11,7 @@ from PyQt5.QtGui import QIcon
 from drawingCurves import Paint
 import points
 import marchingCubes
-from threeDeeFromSlices import ThreeDeeObject
+from threeDee import ThreeDeeObject
 
 class MainWindow(QDialog): #ventana principal
     def __init__(self):
@@ -95,6 +95,26 @@ class MainWindow(QDialog): #ventana principal
         fileMenu.addAction(exitAction)
         exitAction.triggered.connect(self.close)
 
+    def isOpen(self):#cuando se elige la opcion 'open image sequence'
+        self.dir = str(QFileDialog.getExistingDirectory(self, "Select Directory")) #directorio seleccionado
+        if self.dir: #si se ha elegido algun directorio...
+
+            #crear carpeta donde guardaremos todos los datos que saquemos de la app
+            if not os.path.exists(self.dir + "/data/"):
+                os.makedirs(self.dir + "/data/")
+
+            self.imgSequence = fnmatch.filter(os.listdir(self.dir), '*.jpg')  #quedarnos con la secuencia de imagenes (.jpg)
+            if self.imgSequence: #si esta secuencia no esta vacia...
+                self.imgN = 0 #comenzamos por la primera
+                self.load() #la cargamos en la ventana
+                self.paint.globalList = [] #vaciamos su lista global de curvas y particulas (esto es para el UNDO)
+
+            else:
+                print("no images in this folder")
+
+        else:
+            self.isOpen()
+
     def UpdateScreenWithImage(self, filename): #para ajustar la img lo maximo posible al tamaño de la pantalla
         img = cv2.imread(filename) #cargar imagen
 
@@ -108,18 +128,10 @@ class MainWindow(QDialog): #ventana principal
 
         if (screenWidth / ratio > screenHeight): #si la imagen no cabe de ancha...
             scale = screenHeight / actual_height #ajustarla con la altura de la imagen
-            #self.resize(screenWidth / ratio, screenHeight +85)
-            #self.setGeometry(10,30,screenWidth / ratio, screenHeight)
         else: #si la imagen no cabe de alta...
             scale = screenWidth / actual_width #ajustarla con la anchura de la imagen
-            #self.resize(screenWidth, screenHeight * ratio)
-            #self.setGeometry(10, 30, screenWidth, screenHeight * ratio)
 
         return scale
-
-    def writeJSON(self,outputName,dic): #para exportar a json los datos dibujados
-        with open(outputName, 'w') as f:
-            json.dump(dic, f) #pasar el diccionario de curvas/particulas a un archivo .json
 
     def load(self): #para recargar la img con toda su info
         self.setWindowTitle("drawingCurves_" + self.imgSequence[self.imgN])  # titulo de la ventana
@@ -130,50 +142,41 @@ class MainWindow(QDialog): #ventana principal
 
         if self.check_showC.isChecked(): #si el checkbox 'show prev curves' está activado, mostrar las curvas de la img anterior
             start_time = time.time()
-            currentImg = self.paint.showPrevCurves(currentImg, self.dir + "/" + self.imgSequence[self.imgN - 1] + ".json")
+            currentImg = self.paint.showPrevCurves(currentImg, self.dir + "/data/" + self.imgSequence[self.imgN - 1] + ".json")
             print("funcion show: --- %s seconds ---" % (time.time() - start_time))
 
         self.paint.initIMG(currentImg, scale)  # pintar la imagen en la escena
 
-        self.paint.loadCurves(self.dir + "/" + self.imgSequence[self.imgN] + ".json") #cargar todas sus curvas ya dibujadas anteriormente
-        self.paint.loadParticles(self.dir + "/" + self.imgSequence[self.imgN] + "_particles.json") #cargar todas sus particulas
+        self.paint.loadCurves(self.dir + "/data/" + self.imgSequence[self.imgN] + ".json") #cargar todas sus curvas ya dibujadas anteriormente
+        self.paint.loadParticles(self.dir + "/data/" + self.imgSequence[self.imgN] + "_particles.json") #cargar todas sus particulas
 
         if self.check_showP.isChecked(): #si el checkbox 'show prev particles' esta activado, mostrar las particulas de la img anterior
-            self.paint.showPrevParticles(self.dir + "/" + self.imgSequence[self.imgN - 1] + "_particles.json")
+            self.paint.showPrevParticles(self.dir + "/data/" + self.imgSequence[self.imgN - 1] + "_particles.json")
 
-    def isOpen(self):#cuando se elige la opcion 'open image sequence'
-        self.dir = str(QFileDialog.getExistingDirectory(self, "Select Directory")) #directorio seleccionado
-        if self.dir: #si se ha elegido algun directorio...
-            self.imgSequence = fnmatch.filter(listdir(self.dir), '*.jpg')  #quedarnos con la secuencia de imagenes (.jpg)
-            if self.imgSequence: #si esta secuencia no esta vacia...
-                self.imgN = 0 #comenzamos por la primera
-                self.load() #la cargamos en la ventana
-                self.paint.globalList = [] #vaciamos su lista global de curvas y particulas (esto es para el UNDO)
-            else:
-                print("no images in this folder")
-        else:
-            print("No folder was selected")
+    def writeJSON(self,outputName,dic): #para exportar a json los datos dibujados
+        with open(outputName, 'w') as f:
+            json.dump(dic, f) #pasar el diccionario de curvas/particulas a un archivo .json
 
     def gen3D(self): #para generar el 3D
         # escribimos un archivo json con el diccionario de curvas de la imagen (su titulo es el nombre de la imagen)
-        self.writeJSON(self.dir + "/" + self.imgSequence[self.imgN] + ".json", self.paint.imgCurves)
+        self.writeJSON(self.dir + "/data/" + self.imgSequence[self.imgN] + ".json", self.paint.imgCurves)
         # escribimos un archivo json con el diccionario de particulas de la imagen (su titulo es el nombre de la imagen _particles)
-        self.writeJSON(self.dir + "/" + self.imgSequence[self.imgN] + "_particles.json", self.paint.imgParticles)
+        self.writeJSON(self.dir + "/data/" + self.imgSequence[self.imgN] + "_particles.json", self.paint.imgParticles)
 
-        allParticles = points.getAllPoints(self.dir)  # para unir en una sola matriz todos los puntos de todas las particulas de todas las imgs de la secuencia
+        allParticles = points.getAllPoints(self.dir + "/data")  # para unir en una sola matriz todos los puntos de todas las particulas de todas las imgs de la secuencia
 
         #new lines for threeDeeFromSlices:
-        #threeDeeObj = ThreeDeeObject(self.dir)#, allCurves)
+        #threeDeeObj = ThreeDeeObject(self.paint.finalMaskCurves)
         #threeDeeObj.slicing()
 
         #comment to test threeDeeFromSlices:
-        marchingCubes.show3D(self.dir, allParticles) #marching cubes + openGL
+        marchingCubes.show3D(self.dir + "/data", allParticles) #marching cubes + openGL
 
     def isNext(self): #para pasar a la siguiente img
         if self.imgN < len(self.imgSequence) - 1: #si no es la ultima img de la secuencia...
             #escribir json's
-            self.writeJSON(self.dir + "/" + self.imgSequence[self.imgN] + ".json", self.paint.imgCurves)
-            self.writeJSON(self.dir + "/" + self.imgSequence[self.imgN] + "_particles.json", self.paint.imgParticles)
+            self.writeJSON(self.dir + "/data/" + self.imgSequence[self.imgN] + ".json", self.paint.imgCurves)
+            self.writeJSON(self.dir + "/data/" + self.imgSequence[self.imgN] + "_particles.json", self.paint.imgParticles)
 
             self.imgN += 1 #pasar a la siguiente imagen de la secuencia
 
@@ -182,8 +185,8 @@ class MainWindow(QDialog): #ventana principal
 
         elif self.imgN == len(self.imgSequence) - 1: #si es la ultima img de la secuencia...
             #escribir json's
-            self.writeJSON(self.dir + "/" + self.imgSequence[self.imgN] + ".json", self.paint.imgCurves)
-            self.writeJSON(self.dir + "/" + self.imgSequence[self.imgN] + "_particles.json", self.paint.imgParticles)
+            self.writeJSON(self.dir + "/data/" + self.imgSequence[self.imgN] + ".json", self.paint.imgCurves)
+            self.writeJSON(self.dir + "/data/" + self.imgSequence[self.imgN] + "_particles.json", self.paint.imgParticles)
             #no tenemos que cargar ninguna img mas, solo vaciar su lista global de curvas y particulas dibujadas (para el UNDO):
             self.paint.globalList = []
 
@@ -193,8 +196,8 @@ class MainWindow(QDialog): #ventana principal
     def isPrev(self): #para pasar a la img anterior
         if self.imgN > 0: #si no es la primera img de la secuencia...
             # escribir json's
-            self.writeJSON(self.dir + "/" + self.imgSequence[self.imgN] + ".json", self.paint.imgCurves)
-            self.writeJSON(self.dir + "/" + self.imgSequence[self.imgN] + "_particles.json", self.paint.imgParticles)
+            self.writeJSON(self.dir + "/data/" + self.imgSequence[self.imgN] + ".json", self.paint.imgCurves)
+            self.writeJSON(self.dir + "/data/" + self.imgSequence[self.imgN] + "_particles.json", self.paint.imgParticles)
 
             self.imgN -= 1 #para pasar a la imagen anterior de la secuencia
 
@@ -211,13 +214,13 @@ class MainWindow(QDialog): #ventana principal
         self.paint.globalList = [] #vaciar su lista global de curvas y particulas dibujadas (para el UNDO)
 
         # dejar vacios los json cuando se pulse CLEAR:
-        self.writeJSON(self.dir + "/" + self.imgSequence[self.imgN] + ".json", self.paint.imgCurves)
-        self.writeJSON(self.dir + "/" + self.imgSequence[self.imgN] + "_particles.json", self.paint.imgParticles)
+        self.writeJSON(self.dir + "/data/" + self.imgSequence[self.imgN] + ".json", self.paint.imgCurves)
+        self.writeJSON(self.dir + "/data/" + self.imgSequence[self.imgN] + "_particles.json", self.paint.imgParticles)
 
     def isShow(self): #cuando se activan los checkbox de mostrar curvas/particulas anteriores
         # escribir json's
-        self.writeJSON(self.dir + "/" + self.imgSequence[self.imgN] + ".json", self.paint.imgCurves)
-        self.writeJSON(self.dir + "/" + self.imgSequence[self.imgN] + "_particles.json", self.paint.imgParticles)
+        self.writeJSON(self.dir + "/data/" + self.imgSequence[self.imgN] + ".json", self.paint.imgCurves)
+        self.writeJSON(self.dir + "/data/" + self.imgSequence[self.imgN] + "_particles.json", self.paint.imgParticles)
 
         self.load() #cargar info de la img
 
@@ -228,15 +231,15 @@ class MainWindow(QDialog): #ventana principal
             self.paint.isParticles = False
 
         # escribir json's
-        self.writeJSON(self.dir + "/" + self.imgSequence[self.imgN] + ".json", self.paint.imgCurves)
-        self.writeJSON(self.dir + "/" + self.imgSequence[self.imgN] + "_particles.json", self.paint.imgParticles)
+        self.writeJSON(self.dir + "/data/" + self.imgSequence[self.imgN] + ".json", self.paint.imgCurves)
+        self.writeJSON(self.dir + "/data/" + self.imgSequence[self.imgN] + "_particles.json", self.paint.imgParticles)
 
         self.load() #cargar toda la info de la img actual
 
     def isUndo(self): #para deshacer la curva/particula más recientemente dibujada
         # escribir json's
-        self.writeJSON(self.dir + "/" + self.imgSequence[self.imgN] + ".json", self.paint.imgCurves)
-        self.writeJSON(self.dir + "/" + self.imgSequence[self.imgN] + "_particles.json", self.paint.imgParticles)
+        self.writeJSON(self.dir + "/data/" + self.imgSequence[self.imgN] + ".json", self.paint.imgCurves)
+        self.writeJSON(self.dir + "/data/" + self.imgSequence[self.imgN] + "_particles.json", self.paint.imgParticles)
 
         globalList = self.paint.globalList #globalList es la lista global de todas las curvas/particulas que se hayan dibujado en la 'sesion' actual
 
@@ -252,7 +255,7 @@ class MainWindow(QDialog): #ventana principal
                     if any(self.paint.imgCurves): #si el diccionario de curvas de la img actual no esta vacio...
                         i = self.paint.imgCurves.pop(curveN) #eliminamos del diccionario de curvas la ultima curva dibujada
                         #actualizamos el json de curvas de la img
-                        self.writeJSON(self.dir + "/" + self.imgSequence[self.imgN] + ".json", self.paint.imgCurves)
+                        self.writeJSON(self.dir + "/data/" + self.imgSequence[self.imgN] + ".json", self.paint.imgCurves)
                         self.paint.curveCounter -= 1 #actualizamos el contador de curvas
                         self.load() #volvemos a cargar la img con los puntos actualizados
 
@@ -265,7 +268,7 @@ class MainWindow(QDialog): #ventana principal
                     if any(self.paint.imgParticles): #si el diccionario de curvas de la img actual no esta vacio...
                         self.paint.imgParticles.pop(particleN) #eliminamos del diccionario de particulas la ultima particula dibujada
                         # actualizamos el json de particulas de la img
-                        self.writeJSON(self.dir + "/" + self.imgSequence[self.imgN] + "_particles.json", self.paint.imgParticles)
+                        self.writeJSON(self.dir + "/data/" + self.imgSequence[self.imgN] + "_particles.json", self.paint.imgParticles)
                         self.paint.particleCounter -= 1 #actualizamos el contador de particulas
                         self.load() #volvemos a cargar la img con los puntos actualizados
         else:

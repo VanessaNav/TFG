@@ -52,54 +52,64 @@ def show3D(dir, particles):
 
     imgMaskSequence = fnmatch.filter(listdir(dir), '*_maskCurves.png') #mascaras de las imgs:
     #para que se creen las mascaras, en la interfaz hay que pintar las curvas con el checkbox marcado
-    numImgs = len(imgMaskSequence)
-    counter = 0 #contador de imagen
 
-    for image in imgMaskSequence:
+    nothingToShow = True #si no hay datos de las imgs, no podemos mostrar nada en 3d
+    if not len(imgMaskSequence) == 0:
+        nothingToShow = False
 
-        img = io.imread(dir + '/' + image) #leemos la img correspondiente a la mascara que estamos analizando
+        numImgs = len(imgMaskSequence)
+        counter = 0 #contador de imagen
 
-        if counter == 0: #si es la primera img, nos quedamos con su shape como referencia para las demas
-            reference_shape = img.shape
-            #esta sera la shape de la matriz 3d de puntos
-            gridReduced = (numImgs, int(reference_shape[0]/10), int(reference_shape[1]/10))  #reducimos para que podamos ver bien la estructura
-            #antes de reducirlo, solo se veian edges en negro, no se veian las faces de la estructura
-            arr = np.zeros(gridReduced) #3d matrix:
-            #primera dimension: numero de imagenes (cada img es una capa): esta sera la coordenada z
-            #segunda y tercera dimensiones: coordenadas x e y de los ptos
-        else:
-            img = resize(img, reference_shape) #aplicamos a las demas imgs la shape de la primera
+        for image in imgMaskSequence:
 
-        reduced_shape = (int(reference_shape[0] / 10), int(reference_shape[1] / 10)) #reducimos la mascara de la imagen para tener menos puntos en el 3d
-        # antes de reducirlo, solo se veian edges en negro, no se veian las faces de la estructura
-        img = resize(img, reduced_shape)
+            img = io.imread(dir + '/' + image) #leemos la img correspondiente a la mascara que estamos analizando
 
-        img[img == 255] = 1 #para poder convertir la mascara a mascara booleana, primero debemos convertir los blancos (255) a 1
-        img = img.astype(bool)
+            if counter == 0: #si es la primera img, nos quedamos con su shape como referencia para las demas
+                reference_shape = img.shape
+                #esta sera la shape de la matriz 3d de puntos
+                gridReduced = (numImgs, int(reference_shape[0]/10), int(reference_shape[1]/10))  #reducimos para que podamos ver bien la estructura
+                #antes de reducirlo, solo se veian edges en negro, no se veian las faces de la estructura
+                arr = np.zeros(gridReduced) #3d matrix:
+                #primera dimension: numero de imagenes (cada img es una capa): esta sera la coordenada z
+                #segunda y tercera dimensiones: coordenadas x e y de los ptos
+            else:
+                img = resize(img, reference_shape) #aplicamos a las demas imgs la shape de la primera
 
-        # Para suavizar los escalones entre las curvas, vamos a ir 'desvaneciendo' la img conforme mas se acerque al contorno de la curva
-        dis = euclDistanceFromCenter(img) #calculamos la matriz de distancias a partir de la mascara creada
+            reduced_shape = (int(reference_shape[0] / 10), int(reference_shape[1] / 10)) #reducimos la mascara de la imagen para tener menos puntos en el 3d
+            # antes de reducirlo, solo se veian edges en negro, no se veian las faces de la estructura
+            img = resize(img, reduced_shape)
 
-        max = np.max(dis)
-        dis = dis / max - 1 #normalizar distancias para que todas esten entre -1 y 0:
-        #0 significa que esta dentro de la curva pero lejos del punto medio
-        #-1 significa que esta justo en el pto medio
-        dis[dis < -1] = 0.5 #las distancias que se quedan en -inf las dejamos en 0.5 (porque son los puntos que no forman parte de la curva)
+            img[img == 255] = 1 #para poder convertir la mascara a mascara booleana, primero debemos convertir los blancos (255) a 1
+            img = img.astype(bool)
 
-        dis2 = (dis + 1) * 150 #para comprobar como sale la degradacion, la imprimimos en una img
-        #sumamos 1 para volver a dejar DIS dentro del rango del 0 al 1
-        #el 150 es para la degradacion de grises del 0 al 150
-        cv2.imwrite(dir + "/" + "dis{0}.png".format(counter), dis2)
+            # Para suavizar los escalones entre las curvas, vamos a ir 'desvaneciendo' la img conforme mas se acerque al contorno de la curva
+            dis = euclDistanceFromCenter(img) #calculamos la matriz de distancias a partir de la mascara creada
 
-        arr[counter] = dis #imagen 1 a la capa 1 con intensidad = dis, imagen 2 a la capa 2... etc
+            max = np.max(dis)
+            dis = dis / max - 1 #normalizar distancias para que todas esten entre -1 y 0:
+            #0 significa que esta dentro de la curva pero lejos del punto medio
+            #-1 significa que esta justo en el pto medio
+            dis[dis < -1] = 0.5 #las distancias que se quedan en -inf las dejamos en 0.5 (porque son los puntos que no forman parte de la curva)
 
-        counter += 1
+            dis2 = (dis + 1) * 150 #para comprobar como sale la degradacion, la imprimimos en una img
+            #sumamos 1 para volver a dejar DIS dentro del rango del 0 al 1
+            #el 150 es para la degradacion de grises del 0 al 150
+            cv2.imwrite(dir + "/" + "dis{0}.png".format(counter), dis2)
 
-    verts, faces, normals, values = measure.marching_cubes_lewiner(arr) #MC algorithm for curves
+            arr[counter] = dis #imagen 1 a la capa 1 con intensidad = dis, imagen 2 a la capa 2... etc
 
-    w = createGrid()
+            counter += 1
 
-    mesh = gl.GLMeshItem(vertexes=verts, faces=faces, shader='viewNormalColor') #curves
-    w.addItem(mesh)
+    else:
+        print("Nothing to show in 3D")
 
-    particlesIn3D(particles, w) #particles
+    if not nothingToShow: #si hay datos de las imgs, podemos llamar a MC
+
+        verts, faces, normals, values = measure.marching_cubes_lewiner(arr) #MC algorithm for curves
+
+        w = createGrid()
+
+        mesh = gl.GLMeshItem(vertexes=verts, faces=faces, shader='viewNormalColor') #curves
+        w.addItem(mesh)
+
+        particlesIn3D(particles, w) #particles

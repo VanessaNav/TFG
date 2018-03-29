@@ -21,7 +21,7 @@ class Paint(QGraphicsView): #clase para crear el plano donde podremos dibujar
 
         self.isParticles = False #para dibujar particulas
 
-        self.penColors = [Qt.red, QColor.fromRgb(255,105,180), Qt.blue, Qt.green] #lista de colores para el pen (el rgb es el rosa)
+        self.penColors = [Qt.red, QColor.fromRgb(255,105,180), Qt.blue, Qt.green] #lista de colores para el pen (el de rgb es rosa, por si hace falta)
 
         self.globalList = []  #lista para llevar ordenados los ids de curvas y particulas que se van dibujando en las imgs (para el UNDO)
 
@@ -210,9 +210,11 @@ class Paint(QGraphicsView): #clase para crear el plano donde podremos dibujar
 
     def showPrevCurves(self, currentImg, prevImg): #funcion para mostrar curvas de la imagen anterior
         if os.path.isfile(prevImg): #si hay img anterior...
+
             with open(prevImg, 'r') as f: #leemos su json de curvas y guardamos los ptos en un diccionario
                 s = f.read()
                 dic = json.loads(s)
+
                 if any(dic): #si hay alguna curva...
                     self.generateMask(prevImg, dic) #generamos la mascara de la img y sus curvas
                     img = cv2.imread(currentImg) #leemos la img actual
@@ -222,31 +224,45 @@ class Paint(QGraphicsView): #clase para crear el plano donde podremos dibujar
 
                     # volvemos a hacer resize (primero con la Y y luego la X) para mostrar la img en la ventana:
                     img = cv2.resize(small, (img.shape[1], img.shape[0]))
-                    cv2.imwrite(currentImg + '_masked.png' ,img) #guardamos la mascara en un png para comprobar
-                    return currentImg + '_masked.png' #la devolvemos
+
+                    head, sep, tail = currentImg.rpartition("/") #para meterlo en la carpeta data
+                    currentImgData = head + "/data/" + tail
+
+                    cv2.imwrite(currentImgData + '_masked.png' ,img) #guardamos la mascara en un png para comprobar
+
+                    return currentImgData + '_masked.png' #la devolvemos
+
                 else: #si no hay curvas
                     img = cv2.imread(currentImg) #leemos la img actual
                     img //= 2 #oscurecemos toda la img, puesto que no hay ninguna curva en la img anterior (su mascara seria todo 0's)
-                    cv2.imwrite(currentImg + '_masked.png', img) #guardamos la mascara en un png para comprobar
-                    return currentImg + '_masked.png' #la devolvemos
+
+                    currentImgData = currentImg.replace("/", "/data/")
+                    cv2.imwrite(currentImgData + '_masked.png', img) #guardamos la mascara en un png para comprobar
+
+                    return currentImgData + '_masked.png' #la devolvemos
         else:
             return currentImg
 
 
     def showPrevParticles(self, inputName, scale=None): #funcion para mostrar particulas de la imagen anterior
         self.colorN = 3 #las pintamos en verde
+
         if os.path.isfile(inputName): #si existe un fichero de particulas de la img anterior, lo leemos y cargamos los ptos en el diccionario
+
             with open(inputName, 'r') as f:
                 s = f.read()
                 dic = json.loads(s)
+
                 if any(dic): #si no esta vacio, dibujamos los puntos gorditos
                     self.drawPastParticles(dic, 8, scale)
+
                 else:
                     print("there are no particles for this image")
         else:
             print("there's no json file for this image")
 
     def generateMask(self, outputName, dic): #generar la mascara de una img: 0 negro (fuera de la curva), 255 blanco (area dentro de la curva)
+
         if 'particles' not in outputName: #si es curva..
             self.finalMaskCurves = numpy.zeros((self.pixMap.height(), self.pixMap.width())) #creamos un array de 0's (toda la mascara negra al ppio)
 

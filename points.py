@@ -90,7 +90,7 @@ def getAllPoints(dir):
                 s = f.read()
                 dic = json.loads(s)
 
-                if not dic is None:
+                if not len(dic)==0:
                     imgCount += 1
                     for keyN, points in dic.items():
                         points = numpy.array(points)
@@ -105,7 +105,7 @@ def getAllPoints(dir):
 def getAllPointsFromDic(allPoints):
     allP = []
 
-    if not allPoints is None:
+    if not len(allPoints)==0:
         for i in allPoints.keys():
             z = np.ones((len(allPoints[i]), 1)) * i  # coordenadas del eje z a añadir
             p = np.hstack((allPoints[i], z))  # añadimos el eje z como una nueva columna
