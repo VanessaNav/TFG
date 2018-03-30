@@ -153,7 +153,7 @@ class Paint(QGraphicsView): #clase para crear el plano donde podremos dibujar
             with open(inputName, 'r') as f: #lo leemos y escribimos su contenido en el diccionario de curvas de la img
                 s = f.read()
                 self.imgCurves = json.loads(s)
-                if any(self.imgCurves): #si hay alguna curva en el diccionario...
+                if not len(self.imgCurves)==0: #si hay alguna curva en el diccionario...
                     self.drawPastCurves(self.imgCurves, 1, scale) #la dibujamos en la img, con un grosor de lapiz=1 (mas finita para que no moleste)
                 else:
                     print("there are no curves for this image")
@@ -166,7 +166,7 @@ class Paint(QGraphicsView): #clase para crear el plano donde podremos dibujar
             with open(inputName, 'r') as f: #lo leemos y escribimos su contenido en el diccionario de particulas de la img
                 s = f.read()
                 self.imgParticles = json.loads(s)
-                if any(self.imgParticles): #si hay alguna particula en el diccionario...
+                if not len(self.imgParticles)==0: #si hay alguna particula en el diccionario...
                     self.drawPastParticles(self.imgParticles, 8, scale) #la dibujamos en la img, con un grosor de lapiz=8 (para que se vean bien)
                 else:
                     print("there are no particles for this image")
@@ -215,12 +215,12 @@ class Paint(QGraphicsView): #clase para crear el plano donde podremos dibujar
                 s = f.read()
                 dic = json.loads(s)
 
-                if any(dic): #si hay alguna curva...
-                    self.generateMask(prevImg, dic) #generamos la mascara de la img y sus curvas
+                if not len(dic)==0: #si hay alguna curva...
+                    mask = self.generateMask(prevImg, dic) #generamos la mascara de la img y sus curvas
                     img = cv2.imread(currentImg) #leemos la img actual
                     # escalamos esta img con el tamaño de la mascara de la img antetior para que casen bien
-                    small = cv2.resize(img, (self.finalMaskCurves.shape[1], self.finalMaskCurves.shape[0]))
-                    small[self.finalMaskCurves==0] //= 2 #mostramos la img actual oscurecida en los ptos de la mascara que esten a 0 (negro)
+                    small = cv2.resize(img, (mask.shape[1], mask.shape[0]))
+                    small[mask==0] //= 2 #mostramos la img actual oscurecida en los ptos de la mascara que esten a 0 (negro)
 
                     # volvemos a hacer resize (primero con la Y y luego la X) para mostrar la img en la ventana:
                     img = cv2.resize(small, (img.shape[1], img.shape[0]))
@@ -253,7 +253,7 @@ class Paint(QGraphicsView): #clase para crear el plano donde podremos dibujar
                 s = f.read()
                 dic = json.loads(s)
 
-                if any(dic): #si no esta vacio, dibujamos los puntos gorditos
+                if not len(dic)==0: #si no esta vacio, dibujamos los puntos gorditos
                     self.drawPastParticles(dic, 8, scale)
 
                 else:
@@ -264,21 +264,24 @@ class Paint(QGraphicsView): #clase para crear el plano donde podremos dibujar
     def generateMask(self, outputName, dic): #generar la mascara de una img: 0 negro (fuera de la curva), 255 blanco (area dentro de la curva)
 
         if 'particles' not in outputName: #si es curva..
-            self.finalMaskCurves = numpy.zeros((self.pixMap.height(), self.pixMap.width())) #creamos un array de 0's (toda la mascara negra al ppio)
+            finalMaskCurves = numpy.zeros((self.pixMap.height(), self.pixMap.width())) #creamos un array de 0's (toda la mascara negra al ppio)
 
             for keyN, points in dic.items(): #recorremos las curvas
                 #para cada curva, generamos su mascara correspondiente
                 mask = getMask(dic[keyN], (self.pixMap.height(), self.pixMap.width())) #obtenemos la mascara (esta funcion es la mas pesada)
-                self.finalMaskCurves[mask] = 255 #los puntos dentro de la curva seran blancos (255)
+                finalMaskCurves[mask] = 255 #los puntos dentro de la curva seran blancos (255)
 
-            cv2.imwrite(outputName + '_maskCurves.png', self.finalMaskCurves)
+            cv2.imwrite(outputName + '_maskCurves.png', finalMaskCurves)
+            return finalMaskCurves
+
         else: #si es particula...
-            self.finalMaskParticles = numpy.zeros((self.pixMap.height(), self.pixMap.width())) #creamos un array de 0's (toda la mascara negra al ppio)
+            finalMaskParticles = numpy.zeros((self.pixMap.height(), self.pixMap.width())) #creamos un array de 0's (toda la mascara negra al ppio)
 
             for keyN, points in dic.items(): #recorremos las particulas
                 px = int(points[0]) + 350 #coordenada x de la particula (hay que sumarle la posicion absoluta que le aplicamos a la img al ppio)
                 py = int(points[1]) + 70 #coordenada y
                 #primero la y y luego la x: 'x' son las columnas e 'y' las filas de la matriz de la imagen
-                self.finalMaskParticles[py, px] = 255 #ponemos a blanco las posiciones de la mascara en las que hay particula
+                finalMaskParticles[py, px] = 255 #ponemos a blanco las posiciones de la mascara en las que hay particula
 
             #cv2.imwrite(outputName + '_maskParticles.png', self.finalMaskParticles)
+            return finalMaskParticles

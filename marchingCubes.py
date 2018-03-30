@@ -64,41 +64,43 @@ def show3D(dir, particles):
 
             img = io.imread(dir + '/' + image) #leemos la img correspondiente a la mascara que estamos analizando
 
-            if counter == 0: #si es la primera img, nos quedamos con su shape como referencia para las demas
-                reference_shape = img.shape
-                #esta sera la shape de la matriz 3d de puntos
-                gridReduced = (numImgs, int(reference_shape[0]/10), int(reference_shape[1]/10))  #reducimos para que podamos ver bien la estructura
-                #antes de reducirlo, solo se veian edges en negro, no se veian las faces de la estructura
-                arr = np.zeros(gridReduced) #3d matrix:
-                #primera dimension: numero de imagenes (cada img es una capa): esta sera la coordenada z
-                #segunda y tercera dimensiones: coordenadas x e y de los ptos
-            else:
-                img = resize(img, reference_shape) #aplicamos a las demas imgs la shape de la primera
+            if not np.sum(img)==0: #si la mascara de la img no contiene ninguna curva (esta a 0/negro entera)...
 
-            reduced_shape = (int(reference_shape[0] / 10), int(reference_shape[1] / 10)) #reducimos la mascara de la imagen para tener menos puntos en el 3d
-            # antes de reducirlo, solo se veian edges en negro, no se veian las faces de la estructura
-            img = resize(img, reduced_shape)
+                if counter == 0: #si es la primera img, nos quedamos con su shape como referencia para las demas
+                    reference_shape = img.shape
+                    #esta sera la shape de la matriz 3d de puntos
+                    gridReduced = (numImgs, int(reference_shape[0]/10), int(reference_shape[1]/10))  #reducimos para que podamos ver bien la estructura
+                    #antes de reducirlo, solo se veian edges en negro, no se veian las faces de la estructura
+                    arr = np.zeros(gridReduced) #3d matrix:
+                    #primera dimension: numero de imagenes (cada img es una capa): esta sera la coordenada z
+                    #segunda y tercera dimensiones: coordenadas x e y de los ptos
+                else:
+                    img = resize(img, reference_shape) #aplicamos a las demas imgs la shape de la primera
 
-            img[img == 255] = 1 #para poder convertir la mascara a mascara booleana, primero debemos convertir los blancos (255) a 1
-            img = img.astype(bool)
+                reduced_shape = (int(reference_shape[0] / 10), int(reference_shape[1] / 10)) #reducimos la mascara de la imagen para tener menos puntos en el 3d
+                # antes de reducirlo, solo se veian edges en negro, no se veian las faces de la estructura
+                img = resize(img, reduced_shape)
 
-            # Para suavizar los escalones entre las curvas, vamos a ir 'desvaneciendo' la img conforme mas se acerque al contorno de la curva
-            dis = euclDistanceFromCenter(img) #calculamos la matriz de distancias a partir de la mascara creada
+                img[img == 255] = 1 #para poder convertir la mascara a mascara booleana, primero debemos convertir los blancos (255) a 1
+                img = img.astype(bool)
 
-            max = np.max(dis)
-            dis = dis / max - 1 #normalizar distancias para que todas esten entre -1 y 0:
-            #0 significa que esta dentro de la curva pero lejos del punto medio
-            #-1 significa que esta justo en el pto medio
-            dis[dis < -1] = 0.5 #las distancias que se quedan en -inf las dejamos en 0.5 (porque son los puntos que no forman parte de la curva)
+                # Para suavizar los escalones entre las curvas, vamos a ir 'desvaneciendo' la img conforme mas se acerque al contorno de la curva
+                dis = euclDistanceFromCenter(img) #calculamos la matriz de distancias a partir de la mascara creada
 
-            dis2 = (dis + 1) * 150 #para comprobar como sale la degradacion, la imprimimos en una img
-            #sumamos 1 para volver a dejar DIS dentro del rango del 0 al 1
-            #el 150 es para la degradacion de grises del 0 al 150
-            cv2.imwrite(dir + "/" + "dis{0}.png".format(counter), dis2)
+                max = np.max(dis)
+                dis = dis / max - 1 #normalizar distancias para que todas esten entre -1 y 0:
+                #0 significa que esta dentro de la curva pero lejos del punto medio
+                #-1 significa que esta justo en el pto medio
+                dis[dis < -1] = 0.5 #las distancias que se quedan en -inf las dejamos en 0.5 (porque son los puntos que no forman parte de la curva)
 
-            arr[counter] = dis #imagen 1 a la capa 1 con intensidad = dis, imagen 2 a la capa 2... etc
+                dis2 = (dis + 1) * 150 #para comprobar como sale la degradacion, la imprimimos en una img
+                #sumamos 1 para volver a dejar DIS dentro del rango del 0 al 1
+                #el 150 es para la degradacion de grises del 0 al 150
+                cv2.imwrite(dir + "/" + "dis{0}.png".format(counter), dis2)
 
-            counter += 1
+                arr[counter] = dis #imagen 1 a la capa 1 con intensidad = dis, imagen 2 a la capa 2... etc
+
+                counter += 1
 
     else:
         print("Nothing to show in 3D")
