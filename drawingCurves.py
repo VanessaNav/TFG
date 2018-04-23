@@ -8,8 +8,8 @@ from PyQt5.QtWidgets import QGraphicsView, QGraphicsScene, QGraphicsLineItem
 from PyQt5.QtCore import QPointF, QRectF, Qt, QLineF
 from PyQt5.QtGui import QPen, QBrush, QPixmap, QImage, QColor
 
-from cropping import cropImageBorders
-from masking import getMask
+from cropping import cropperObj
+from masking import maskerObj
 
 class Paint(QGraphicsView): #clase para crear el plano donde podremos dibujar
     def __init__(self):
@@ -45,7 +45,8 @@ class Paint(QGraphicsView): #clase para crear el plano donde podremos dibujar
         self.pointList = [] #lista de puntos para las curvas de la imagen
         self.particleList = [] #lista de particulas
 
-        cropImageBorders(filename) #recortar los bordes negros de la imagen
+        cropper = cropperObj(filename)
+        cropper.cropImageBorders() #recortar los bordes negros de la imagen
 
         img = QImage(filename) #convertir la imagen a QImage
         imgS = img.scaled(img.width() * scale, img.height() * scale)  #ajustar la img a la pantalla
@@ -236,7 +237,9 @@ class Paint(QGraphicsView): #clase para crear el plano donde podremos dibujar
                     img = cv2.imread(currentImg) #leemos la img actual
                     img //= 2 #oscurecemos toda la img, puesto que no hay ninguna curva en la img anterior (su mascara seria todo 0's)
 
-                    currentImgData = currentImg.replace("/", "/data/")
+                    head, sep, tail = currentImg.rpartition("/")  # para meterlo en la carpeta data
+                    currentImgData = head + "/data/" + tail
+                    
                     cv2.imwrite(currentImgData + '_masked.png', img) #guardamos la mascara en un png para comprobar
 
                     return currentImgData + '_masked.png' #la devolvemos
@@ -268,7 +271,8 @@ class Paint(QGraphicsView): #clase para crear el plano donde podremos dibujar
 
             for keyN, points in dic.items(): #recorremos las curvas
                 #para cada curva, generamos su mascara correspondiente
-                mask = getMask(dic[keyN], (self.pixMap.height(), self.pixMap.width())) #obtenemos la mascara (esta funcion es la mas pesada)
+                masker = maskerObj(dic[keyN], (self.pixMap.height(), self.pixMap.width()))
+                mask = masker.getMask() #obtenemos la mascara (esta funcion es la mas pesada)
                 finalMaskCurves[mask] = 255 #los puntos dentro de la curva seran blancos (255)
 
             cv2.imwrite(outputName + '_maskCurves.png', finalMaskCurves)

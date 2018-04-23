@@ -11,7 +11,6 @@ from PyQt5.QtGui import QIcon
 from drawingCurves import Paint
 import points
 import marchingCubes
-from threeDee import ThreeDeeObject
 
 class MainWindow(QDialog): #ventana principal
     def __init__(self):
@@ -166,14 +165,12 @@ class MainWindow(QDialog): #ventana principal
         # escribimos un archivo json con el diccionario de particulas de la imagen (su titulo es el nombre de la imagen _particles)
         self.writeData(self.dir + "/data/" + self.imgSequence[self.imgN] + "_particles.json", self.paint.imgParticles)
 
-        allParticles = points.getAllPoints(self.dir + "/data")  # para unir en una sola matriz todos los puntos de todas las particulas de todas las imgs de la secuencia
+        pointsObj = points.pointsObject(self.dir + "/data")
+        allParticles = pointsObj.getAllPoints()  # para unir en una sola matriz todos los puntos de todas las particulas de todas las imgs de la secuencia
 
-        #new lines for threeDeeFromSlices:
-        #threeDeeObj = ThreeDeeObject(self.paint.finalMaskCurves)
-        #threeDeeObj.slicing()
-
-        #comment to test threeDeeFromSlices:
-        marchingCubes.show3D(self.dir + "/data", allParticles) #marching cubes + openGL
+        #para generar el mesh 3d junto con las particulas marcadas
+        threeDeeObj = marchingCubes.threeDeeObject(self.dir + "/data", allParticles)
+        threeDeeObj.show3D() #marching cubes + openGL
 
     def isNext(self): #para pasar a la siguiente img
         if self.imgN < len(self.imgSequence) - 1: #si no es la ultima img de la secuencia...
