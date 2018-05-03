@@ -27,7 +27,7 @@ import cv2
 from skimage import measure
 from skimage.draw import ellipsoid
 
-from points import getAllPoints
+import utilsPac
 
 # Generate a level set about zero of two identical ellipsoids in 3D
 ellip_base = ellipsoid(6, 10, 16, levelset=True)
